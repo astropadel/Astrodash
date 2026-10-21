@@ -272,6 +272,9 @@ details.tool[open] > summary::after { content: "\2212"; }
   .tab { padding-inline: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.update-banner { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; align-items: center; gap: 12px; background: var(--fg); color: var(--bg); padding: 10px 12px 10px 16px; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: calc(100% - 32px); font-size: 15px; }
+.update-banner[hidden] { display: none; }
+.update-banner .btn { min-height: 36px; }
 .pv-manual summary { cursor: pointer; font-weight: 600; color: var(--accent); padding: 6px 0; }
 .pv-manual .tool-body { padding-top: 6px; }
 .pv-item { border-top: 1px solid var(--line); padding: 14px 0; }
@@ -596,6 +599,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
+<div class="update-banner" id="update-banner" role="status" hidden><span>Hay una versión nueva de AstroDash.</span><button class="btn btn-primary btn-sm" type="button" data-act="app-update">Actualizar</button></div>
 
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lock-title">
   <div class="lock-box">
@@ -1559,6 +1563,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     else if (act === 'pin-change') { startPin('create'); }
     else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
     else if (act === 'sign-out') { signOutNow(); }
+    else if (act === 'app-update') { try { clearTimeout(draftTimer); draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild || Date.now()); }
     else if (act === 'pv-read') { pvRead(); }
     else if (act === 'pv-manual') { pvManual(); }
     else if (act === 'pv-save') { pvSave(); }
@@ -2213,6 +2218,18 @@ details.tool[open] > summary::after { content: "\2212"; }
     updatePreview(); renderQuote();
     if (n) setTimeout(function () { toast('Recuperé lo que estabas escribiendo'); }, 600);
   }
+
+  /* ---------- Avisar cuando hay una versión nueva ---------- */
+  var BUILD_ID = '1792597782'; var newBuild = '';
+  function checkUpdate() {
+    try {
+      fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+        if (j && j.build && String(j.build) !== BUILD_ID) { newBuild = String(j.build); $('#update-banner').hidden = false; }
+      }).catch(function () { /* sin conexión: se vuelve a probar luego */ });
+    } catch (e) { /* sin fetch */ }
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkUpdate(); });
+  setInterval(checkUpdate, 5 * 60000); setTimeout(checkUpdate, 5000);
 
   /* ---------- Acceso (Supabase Auth + PIN de este dispositivo) ---------- */
   var A = window.AstroAuth;
