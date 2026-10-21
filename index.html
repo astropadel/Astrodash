@@ -275,6 +275,22 @@ details.tool[open] > summary::after { content: "\2212"; }
 .xrow { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: var(--surface); }
 .xhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .sale-main .oi { color: var(--fg-2); }
+.od-box { max-width: 560px; }
+.od-box h2 { margin: 0; }
+.od-sec { margin-top: 14px; }
+.od-sec h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-3); }
+.od-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 15px; }
+.od-kv dt { color: var(--fg-3); } .od-kv dd { margin: 0; overflow-wrap: anywhere; }
+.od-item { padding: 9px 0; border-top: 1px solid var(--line); }
+.od-item:first-of-type { border-top: 0; }
+.od-item strong { display: block; overflow-wrap: anywhere; }
+.od-item .sub { display: block; font-size: 12.5px; color: var(--fg-3); }
+.od-nums { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; font-size: 13.5px; color: var(--fg-3); }
+.od-nums b { display: block; color: var(--fg); font-size: 15px; font-weight: 600; }
+.od-tot { margin-top: 8px; padding: 12px; border-radius: 10px; background: var(--accent-soft); display: grid; gap: 4px; }
+.od-tot div { display: flex; justify-content: space-between; gap: 12px; }
+.od-tot .big { font-weight: 700; font-size: 17px; }
+li.sale[data-act="order-open"] { cursor: pointer; }
 .sfilter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -597,6 +613,12 @@ details.tool[open] > summary::after { content: "\2212"; }
   </section>
 </main>
 
+<div id="od-modal" class="rc-modal" role="dialog" aria-modal="true" aria-labelledby="od-title" hidden>
+  <div class="rc-box od-box">
+    <div id="od-body"></div>
+    <div class="btn-row" id="od-actions"></div>
+  </div>
+</div>
 <div id="rc-modal" class="rc-modal" role="dialog" aria-modal="true" aria-labelledby="rc-title" hidden>
   <div class="rc-box">
     <h2 id="rc-title">Comprobante de compra</h2>
@@ -1054,7 +1076,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       if (s.cedula) det.push('C.I. ' + s.cedula);
       if (s.supplier && !multi) det.push('prov. ' + s.supplier);
       if (s.barcode) det.push('cód. ' + s.barcode);
-      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(multi ? 'Pedido de ' + o.items.length + ' artículos' : (s.product || '(sin nombre)')) + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + itemLines + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(usdT)) + '</span></div><div class="sale-actions">' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
+      return '<li class="sale" data-act="order-open" data-id="' + esc(s.id) + '"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(multi ? 'Pedido de ' + o.items.length + ' artículos' : (s.product || '(sin nombre)')) + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + itemLines + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(usdT)) + '</span></div><div class="sale-actions"><button class="link" type="button" data-act="order-open" data-id="' + esc(s.id) + '">Ver detalle</button>' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
     }).join('');
     var more = $('#sales-more'); more.hidden = state.showAll || list.length <= 40;
     if (!more.hidden) $('button', more).textContent = 'Mostrar las ' + list.length + ' ventas';
@@ -1063,6 +1085,37 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   function lastSale() { var d = data(); var l = sortSales(d.sales); return l[0] || null; }
+  var OD = { id: '' };
+  function kv(k, v) { return v ? '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>' : ''; }
+  function openOrder(id) {
+    var o = orderById(id); if (!o) return; OD.id = o.head.id; var s = o.head; var multi = o.items.length > 1;
+    var rev = 0, cost = 0, ship = 0, profit = 0, usd = 0, costE = 0;
+    o.items.forEach(function (x) { var c = calc(x); rev += c.rev; cost += c.cost; ship += c.ship; profit += c.profit; usd += x.usd; costE += x.cost; });
+    var nro = 'AP-' + String(s.date).replace(/-/g, '') + '-' + String(s.id).slice(-4).toUpperCase();
+    var h = '<h2 id="od-title">' + esc(multi ? 'Pedido de ' + o.items.length + ' artículos' : 'Detalle del pedido') + '</h2>';
+    h += '<p class="muted" style="margin:4px 0 0">' + esc(dateShort(s.date)) + ' · N.º ' + esc(nro) + ' <span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></p>';
+    var cl = '<dl class="od-kv">' + kv('Nombre', s.fullname) + kv('Cédula', s.cedula) + kv('Instagram', s.client) + kv('Teléfono', s.phone) + kv('Envío a', [s.street, s.city].filter(Boolean).join(', ')) + '</dl>';
+    h += '<div class="od-sec"><h3>Cliente y envío</h3>' + (s.fullname || s.cedula || s.client || s.phone || s.street || s.city ? cl : '<span class="muted">Sin datos del cliente.</span>') + '</div>';
+    h += '<div class="od-sec"><h3>Artículos</h3>';
+    o.items.forEach(function (x) { var c = calc(x); h += '<div class="od-item"><strong>' + esc(x.product || '(sin nombre)') + '</strong>' + (x.supplier ? '<span class="sub">prov. ' + esc(x.supplier) + '</span>' : '') + '<div class="od-nums"><span>Cobrado<b>' + esc(fUSD.format(x.usd)) + '</b></span><span>Coste<b>' + esc(fEUR.format(x.cost)) + '</b></span><span>Beneficio<b>' + esc(signedM(c.rev - c.cost)) + '</b></span></div></div>'; });
+    h += (multi ? '<p class="hint" style="margin:6px 0 0">El beneficio de cada artículo no incluye el envío; el envío se resta en el total.</p>' : '') + '</div>';
+    var margin = rev ? profit / rev : 0;
+    h += '<div class="od-tot"><div><span>Total cobrado</span><span>' + esc(fUSD.format(usd)) + (s.rate > 0 ? ' · ' + esc(fEUR.format(usd / s.rate)) : '') + '</span></div>'
+      + '<div><span>Coste de los artículos</span><span>' + esc(fEUR.format(costE)) + '</span></div>'
+      + '<div><span>Gastos de envío</span><span>' + esc(fEUR.format(s.ship)) + '</span></div>'
+      + '<div><span>Tipo de cambio</span><span>' + esc(fRate.format(s.rate)) + ' US$ por 1 €</span></div>'
+      + '<div class="big"><span>Beneficio del pedido</span><span class="' + (profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(profit)) + (rev ? ' (' + esc(fPct.format(margin)) + ')' : '') + '</span></div></div>';
+    var pay = '<dl class="od-kv">' + kv('Método de pago', s.method) + kv('Código de barras', s.barcode) + '</dl>';
+    var extra = (s.method || s.barcode ? pay : '') + (s.invoice ? '<p style="margin:8px 0 0"><a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Ver factura del envío (' + esc(s.invoice.name) + ')</a></p>' : '');
+    if (extra) h += '<div class="od-sec"><h3>Pago y factura</h3>' + extra + '</div>';
+    $('#od-body').innerHTML = h;
+    var b = '';
+    if (ST_NEXT[s.status]) b += '<button class="btn btn-primary" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '" data-close="1">' + ST_NEXT[s.status][1] + '</button>';
+    b += '<button class="btn btn-ghost" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button><button class="btn btn-ghost" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '" data-close="1">Editar</button><button class="btn btn-ghost" type="button" data-act="order-close">Cerrar</button>';
+    $('#od-actions').innerHTML = b;
+    $('#od-modal').hidden = false; var f = $('#od-actions button'); if (f) f.focus();
+  }
+  function closeOrder() { $('#od-modal').hidden = true; OD.id = ''; }
   async function advStatus(id, to) {
     if (!state.db || state.demo) { toast('No se puede cambiar el estado ahora.'); return; }
     try { var ord = orderById(id); var ids = ord ? ord.items.map(function (x) { return x.id; }) : [id]; for (var i = 0; i < ids.length; i++) await state.db.collection('sales').doc(ids[i]).update({ status: to }); toast(to === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido marcado como entregado'); }
@@ -1646,6 +1699,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var tabBtn = e.target.closest('[data-tab]'); if (tabBtn) { setTab(tabBtn.dataset.tab); return; }
     var el = e.target.closest('[data-act]'); if (!el) return;
     var act = el.dataset.act;
+    if (el.dataset.close) closeOrder();
     if (act === 'toggle-menu') { setMenu($('#menu-panel').hidden); }
     else if (act === 'lock') { el.classList.add('closed'); setMenu(false); setTimeout(lockNow, 260); }
     else if (act === 'use-login') { signOutNow(); }
@@ -1654,6 +1708,8 @@ details.tool[open] > summary::after { content: "\2212"; }
     else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
     else if (act === 'sign-out') { signOutNow(); }
     else if (act === 'app-update') { try { clearTimeout(draftTimer); draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild || Date.now()); }
+    else if (act === 'order-open') { openOrder(el.dataset.id); }
+    else if (act === 'order-close') { closeOrder(); }
     else if (act === 'x-add') { addExtra({}); updatePreview(); var lastx = document.querySelector('#extra-items .xrow:last-child input'); if (lastx) lastx.focus(); }
     else if (act === 'x-del') { var xrow = el.closest('.xrow'); if (xrow) { xrow.remove(); updatePreview(); draftSave(); } }
     else if (act === 'status-filter') { state.statusFilter = el.dataset.v || ''; state.showAll = false; renderVentas(); }
@@ -1706,7 +1762,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = 'Borrar'; }, 3000)); }
     }
   });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { setMenu(false); if (!$('#rc-modal').hidden) closeReceipt(); } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { setMenu(false); if (!$('#rc-modal').hidden) closeReceipt(); else if (!$('#od-modal').hidden) closeOrder(); } });
   bindProveedores();
   $('#form-venta').addEventListener('submit', saveSale);
   $('#form-ads').addEventListener('submit', saveAd);
@@ -2323,7 +2379,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792607450'; var newBuild = '';
+  var BUILD_ID = '1792608282'; var newBuild = '';
   function checkUpdate() {
     try {
       fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
