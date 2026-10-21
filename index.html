@@ -1017,6 +1017,13 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   function lastSale() { var d = data(); var l = sortSales(d.sales); return l[0] || null; }
+  function seedSaleDefaults() {
+    if (state.editing || state.demo) return;
+    var ls = lastSale(); var ch = false;
+    if (!$('#f-method').value && ls && ls.method) { $('#f-method').value = ls.method; ch = true; }
+    if (!$('#f-rate').value && ls && ls.rate) { $('#f-rate').value = toField(ls.rate); ch = true; }
+    if (ch) updatePreview();
+  }
   function resetForm(keep) {
     var f = $('#form-venta');
     if (state.invoiceUnsaved && state.invoice) delAsset(state.invoice.id);
@@ -1031,7 +1038,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     $('#form-venta-title').textContent = 'Registrar venta';
     $('#f-submit').textContent = 'Guardar venta';
     $('#f-cancel').hidden = true; $('#form-error').textContent = '';
-    updatePreview(); renderInvoiceStatus();
+    updatePreview(); renderInvoiceStatus(); draftClear('#form-venta');
   }
   /* Tipo de cambio EUR→USD: prueba varias fuentes, por orden, hasta que una responda */
   function getJSON(url, ms) {
@@ -1154,7 +1161,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     try {
       await state.db.collection('ads').doc(month).set({ month: month, amount: amount, note: $('#a-note').value.trim() });
       toast('Publicidad de ' + monthLong(month).toLowerCase() + ' guardada');
-      $('#a-amount').value = ''; $('#a-note').value = '';
+      $('#a-amount').value = ''; $('#a-note').value = ''; draftClear('#form-ads');
     } catch (ex) { err.textContent = 'No se pudo guardar. Inténtalo de nuevo.'; }
     btn.disabled = false;
   }
@@ -1242,7 +1249,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     state.stockEditing = null;
     ['i-product', 'i-qty', 'i-cost', 'i-min', 'i-brand', 'i-year', 'i-supplier'].forEach(function (id) { $('#' + id).value = ''; });
     $('#form-stock-title').textContent = 'Añadir unidades al inventario'; $('#i-qty-label').textContent = 'Unidades compradas';
-    $('#i-submit').textContent = 'Añadir al inventario'; $('#i-cancel').hidden = true; $('#stock-error').textContent = '';
+    $('#i-submit').textContent = 'Añadir al inventario'; $('#i-cancel').hidden = true; $('#stock-error').textContent = ''; draftClear('#form-stock');
   }
   function editStock(id) {
     var it = data().stock.filter(function (x) { return x.id === id; })[0]; if (!it) return;
@@ -1409,7 +1416,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var ls = state.demo ? null : lastSale(); $('#q-rate').value = ls && ls.rate ? toField(ls.rate) : '';
     $('#q-ship-c').value = ''; $('#q-ship-p').value = ''; $('#q-extra').value = '5'; $('#q-valid').value = '7'; $('#q-note').value = 'El envío se cobra aparte del precio de las palas.';
     $('#q-title').textContent = 'Presupuesto para comercio'; $('#q-save').textContent = 'Guardar presupuesto'; $('#q-error').textContent = '';
-    renderQLines(); renderQuote();
+    renderQLines(); renderQuote(); draftClear('#form-b2b');
   }
   function quoteDoc() {
     var Q = calcQuote();
@@ -2040,7 +2047,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     if (state.demo) { err.textContent = 'Sal del ejemplo para guardar.'; return; }
     if (!state.db) { err.textContent = 'No se puede guardar ahora. Recarga la página e inicia sesión.'; return; }
     if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
-    try { await state.db.collection('suppliers').doc(slug(name)).set({ name: name, url: url }); $('#sup-name').value = ''; $('#sup-url').value = ''; toast('Proveedor guardado'); }
+    try { await state.db.collection('suppliers').doc(slug(name)).set({ name: name, url: url }); $('#sup-name').value = ''; $('#sup-url').value = ''; draftClear('#form-sup'); toast('Proveedor guardado'); }
     catch (ex) { err.textContent = 'No se pudo guardar. Inténtalo de nuevo.'; }
   }
   async function deleteSupplier(id) {
@@ -2102,7 +2109,7 @@ details.tool[open] > summary::after { content: "\2212"; }
           return state.db.collection('prices').doc(pvId(sup, x.key)).set({ supplierId: sup, name: x.name, key: x.key, url: x.url || (ex && ex.url) || '', price: x.price, old: x.old || 0, stock: x.stock, updated: todayISO(), brand: m.brand, year: m.year, prev: changed ? ex.price : ex ? ex.prev || 0 : 0, prevDate: changed ? ex.updated : ex ? ex.prevDate || '' : '' });
         }));
       }
-      toast(list.length + (list.length === 1 ? ' precio guardado' : ' precios guardados')); PV.parsed = []; $('#pv-text').value = ''; renderPreview();
+      toast(list.length + (list.length === 1 ? ' precio guardado' : ' precios guardados')); PV.parsed = []; $('#pv-text').value = ''; draftClear('#card-load'); renderPreview();
     } catch (ex) { err.textContent = 'No se pudieron guardar todos. Inténtalo de nuevo.'; if (btn) btn.disabled = false; }
   }
   function renderCompare() {
@@ -2154,6 +2161,54 @@ details.tool[open] > summary::after { content: "\2212"; }
     ['cmp-brand', 'cmp-multi', 'cmp-nostock'].forEach(function (id) { $('#' + id).addEventListener('change', function () { PV.shown = 40; renderCompare(); }); });
   }
 
+
+  /* ---------- Borradores: lo que escribes se conserva si cierras la pestaña o recargas ---------- */
+  var DRAFT_KEY = 'astro.draft'; var DRAFT_FORMS = ['#form-venta', '#form-ads', '#form-stock', '#form-b2b', '#form-sup', '#card-load']; var DRAFT_SKIP = { 'pv-sup': 1, 'cmp-q': 1, 'cmp-brand': 1 };
+  var touched = {}; var draftTimer = null;
+  function draftForm(el) { for (var i = 0; i < DRAFT_FORMS.length; i++) { if (el.closest(DRAFT_FORMS[i])) return DRAFT_FORMS[i]; } return ''; }
+  function draftSave() {
+    if (state.demo) return;
+    var d = { v: {}, lines: null, t: Date.now() }; var any = false; var qTouched = false;
+    Object.keys(touched).forEach(function (id) {
+      if (/^ql-/.test(id)) { qTouched = true; return; }
+      var el = document.getElementById(id); if (!el) return;
+      if (state.editing && el.closest('#form-venta')) return;
+      if (state.stockEditing && el.closest('#form-stock')) return;
+      if (state.q.id && el.closest('#form-b2b')) return;
+      d.v[id] = el.type === 'checkbox' ? (el.checked ? '1' : '') : el.value; any = true;
+    });
+    if (qTouched && !state.q.id) { d.lines = state.q.lines; any = true; }
+    try { if (any) localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); else localStorage.removeItem(DRAFT_KEY); } catch (e) { /* sin almacenamiento */ }
+  }
+  function draftClear(formSel) {
+    Object.keys(touched).forEach(function (id) { if (touched[id] === formSel) delete touched[id]; });
+    draftSave();
+  }
+  function draftNote(e) {
+    var el = e.target; if (!el || !el.id || el.type === 'file' || el.type === 'password' || DRAFT_SKIP[el.id]) return;
+    var f = draftForm(el); if (!f) return;
+    touched[el.id] = f; clearTimeout(draftTimer); draftTimer = setTimeout(draftSave, 400);
+  }
+  document.addEventListener('input', draftNote, true); document.addEventListener('change', draftNote, true);
+  document.addEventListener('visibilitychange', function () { if (document.hidden) { clearTimeout(draftTimer); draftSave(); } });
+  window.addEventListener('pagehide', function () { clearTimeout(draftTimer); draftSave(); });
+  var DRAFT0 = (function () { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch (e) { return null; } })();
+  function draftRestore() {
+    if (state.demo) return;
+    var d = DRAFT0; DRAFT0 = null;
+    if (!d || !d.v) return;
+    if (d.t && Date.now() - d.t > 7 * 86400000) { try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* sin almacenamiento */ } return; }
+    var n = 0;
+    Object.keys(d.v).forEach(function (id) {
+      var el = document.getElementById(id); if (!el || DRAFT_SKIP[id] || !d.v[id] && el.type !== 'checkbox') return;
+      if (el.type === 'checkbox') el.checked = d.v[id] === '1'; else el.value = d.v[id];
+      touched[id] = draftForm(el); n++;
+    });
+    if (d.lines && d.lines.length) { state.q.lines = d.lines.map(function (l) { return { product: String(l.product || ''), units: String(l.units || ''), cost: String(l.cost || '') }; }); touched['ql-restored'] = '#form-b2b'; renderQLines(); n++; }
+    updatePreview(); renderQuote();
+    if (n) setTimeout(function () { toast('Recuperé lo que estabas escribiendo'); }, 600);
+  }
+
   /* ---------- Acceso (Supabase Auth + PIN de este dispositivo) ---------- */
   var A = window.AstroAuth;
   var PIN_KEY = 'astro.pin';
@@ -2179,7 +2234,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     lockEl.hidden = false; document.body.classList.add('locked'); showPane('pin');
   }
   function unlock() { var lbn = $('#lock-btn'); if (lbn) lbn.classList.remove('closed'); lockEl.hidden = true; document.body.classList.remove('locked'); loginFails = 0; pinFails = 0; entered = ''; paintDots(); $('#l-pass').value = ''; setTimeout(drawChart, 0); if (state.tab === 'resumen') loadFollowers(false); A.markIn(); }
-  async function signOutNow() { try { if (A.sb) await A.sb.auth.signOut(); } catch (e) { /* se recarga igualmente */ } lsDel(PIN_KEY); location.reload(); }
+  async function signOutNow() { try { if (A.sb) await A.sb.auth.signOut(); } catch (e) { /* se recarga igualmente */ } lsDel(PIN_KEY); lsDel(DRAFT_KEY); location.reload(); }
   function lockNow() { if (hasPin()) startPin('enter'); else signOutNow(); }
   async function press(k) {
     if (lockEl.hidden || $('#pane-pin').hidden) return;
@@ -2243,6 +2298,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   $('#a-month').value = todayISO().slice(0, 7);
   resetQuote();
   resetForm(false);
+  draftRestore();
   setTab(state.tab);
   renderAll();
 
@@ -2254,7 +2310,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var onErr = function () { state.dbStatus = 'none'; renderAll(); };
     db.collection('sales').onSnapshot(function (snap) {
       state.sales = snap.docs.map(function (d) { return normSale(d.data() || {}, d.id); });
-      state.loaded.sales = true; var first = !$('#f-rate').value; if (first) resetForm(true); renderAll();
+      state.loaded.sales = true; seedSaleDefaults(); renderAll();
     }, onErr);
     db.collection('ads').onSnapshot(function (snap) {
       state.ads = snap.docs.map(function (d) { var o = d.data() || {}; return { id: d.id, month: String(o.month || d.id), amount: +o.amount || 0, note: String(o.note || '') }; });
