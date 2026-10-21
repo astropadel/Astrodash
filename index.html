@@ -231,6 +231,7 @@ a.btn { text-decoration: none; }
 .chev { color: var(--fg-3); transition: transform .15s; } .menu-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .menu-panel { position: absolute; left: 0; right: 0; top: 100%; background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: 0 12px 28px rgba(0, 0, 0, .14); z-index: 30; }
 .menu-panel .list { max-width: 1080px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-left, 0px)) 14px; display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.menu-upd { display: block; width: 100%; margin-top: 8px; min-height: 46px; padding: 0 14px; text-align: left; font-size: 16px; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: var(--fg-2); cursor: pointer; }
 .menu-panel .tab { border: 1px solid transparent; border-radius: 8px; text-align: left; padding: 0 14px; min-height: 46px; font-size: 16px; }
 .menu-panel .tab[aria-selected="true"] { background: var(--surface-2); border-color: var(--accent); color: var(--fg); }
 details.tool > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 600 22px/1.15 var(--font-display); letter-spacing: .03em; text-transform: uppercase; }
@@ -348,6 +349,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     <button class="tab" role="tab" id="tab-seguimientos" data-tab="seguimientos" aria-selected="false" aria-controls="view-seguimientos">Seguimientos</button>
     <button class="tab" role="tab" id="tab-herramientas" data-tab="herramientas" aria-selected="false" aria-controls="view-herramientas">Herramientas</button>
     </div>
+    <button class="menu-upd" type="button" data-act="check-update" id="upd-btn">Buscar actualización</button>
   </div>
 </nav>
 
@@ -1709,6 +1711,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     else if (act === 'pin-change') { startPin('create'); }
     else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
     else if (act === 'sign-out') { signOutNow(); }
+    else if (act === 'check-update') { checkUpdateNow(el); }
     else if (act === 'app-update') { try { clearTimeout(draftTimer); draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild || Date.now()); }
     else if (act === 'order-open') { openOrder(el.dataset.id); }
     else if (act === 'order-close') { closeOrder(); }
@@ -2382,7 +2385,15 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792614898'; var newBuild = '';
+  var BUILD_ID = '1792614973'; var newBuild = '';
+  function checkUpdateNow(btn) {
+    btn.disabled = true; btn.textContent = 'Buscando…';
+    var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
+    fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (j && j.build && String(j.build) !== BUILD_ID) { newBuild = String(j.build); toast('Versión nueva encontrada. Actualizando…'); setTimeout(function () { try { draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild); }, 600); }
+      else done('Ya tienes la última versión.');
+    }).catch(function () { done('No se pudo comprobar. Revisa tu conexión.'); });
+  }
   function checkUpdate() {
     try {
       fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
