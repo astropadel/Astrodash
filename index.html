@@ -272,6 +272,18 @@ details.tool[open] > summary::after { content: "\2212"; }
   .tab { padding-inline: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.pv-manual summary { cursor: pointer; font-weight: 600; color: var(--accent); padding: 6px 0; }
+.pv-manual .tool-body { padding-top: 6px; }
+.pv-item { border-top: 1px solid var(--line); padding: 14px 0; }
+.pv-item:first-child { border-top: 0; padding-top: 4px; }
+.pv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.pv-offers { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.pv-offers li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.pv-off-sup { min-width: 130px; color: var(--fg-2); }
+.pv-price { min-width: 84px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pv-offers li.best .pv-price { color: var(--good); font-weight: 700; }
+.pv-foot { margin-top: 8px; font-size: 14px; color: var(--fg-2); }
+.pv-foot .pos-text { color: var(--good); }
 </style>
 
 <header class="top">
@@ -301,6 +313,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     <button class="tab" role="tab" id="tab-ventas" data-tab="ventas" aria-selected="false" aria-controls="view-ventas">Ventas</button>
     <button class="tab" role="tab" id="tab-b2b" data-tab="b2b" aria-selected="false" aria-controls="view-b2b">B2B</button>
     <button class="tab" role="tab" id="tab-inventario" data-tab="inventario" aria-selected="false" aria-controls="view-inventario">Inventario</button>
+    <button class="tab" role="tab" id="tab-proveedores" data-tab="proveedores" aria-selected="false" aria-controls="view-proveedores">Proveedores</button>
     <button class="tab" role="tab" id="tab-publicidad" data-tab="publicidad" aria-selected="false" aria-controls="view-publicidad">Publicidad</button>
     <button class="tab" role="tab" id="tab-instagram" data-tab="instagram" aria-selected="false" aria-controls="view-instagram">Instagram</button>
     <button class="tab" role="tab" id="tab-seguimientos" data-tab="seguimientos" aria-selected="false" aria-controls="view-seguimientos">Seguimientos</button>
@@ -433,6 +446,49 @@ details.tool[open] > summary::after { content: "\2212"; }
       <div class="sec-head"><h2>Existencias</h2><span class="sub">Unidades compradas menos vendidas</span></div>
       <div class="toolbar" style="margin-bottom:10px"><label for="stock-brand">Marca</label><select id="stock-brand"><option value="">Todas</option></select></div>
       <div class="tbl-wrap" id="stock-table"></div>
+    </div>
+  </section>
+
+  <!-- PROVEEDORES -->
+  <section class="view" id="view-proveedores" role="tabpanel" aria-labelledby="tab-proveedores" hidden>
+    <div class="card">
+      <div class="sec-head"><h2>Proveedores</h2><span class="sub" id="sp-count"></span></div>
+      <form id="form-sup" class="fgrid" novalidate>
+        <div class="field"><label for="sup-name">Nombre</label><input type="text" id="sup-name" placeholder="Padel and Help" autocomplete="off"></div>
+        <div class="field"><label for="sup-url">Web de la tienda</label><input type="text" id="sup-url" inputmode="url" placeholder="https://www.padelandhelp.com" autocomplete="off" autocapitalize="none"></div>
+        <div class="field" style="align-self:end"><button class="btn btn-primary" type="submit">Añadir proveedor</button></div>
+      </form>
+      <p class="form-error" id="sup-error" role="alert"></p>
+      <ul class="sales" id="sup-list" style="margin-top:8px"></ul>
+    </div>
+    <div class="card" id="card-load">
+      <h2>Cargar precios</h2>
+      <p class="muted">Abre la tienda del proveedor y entra en la categoría (por ejemplo, Nox). Selecciona todo con Ctrl+A (o Cmd+A), copia y pégalo aquí. Los precios se guardan tal como aparecen, sin sumar IVA ni envío. También sirve un CSV con «nombre;precio».</p>
+      <div class="fgrid"><div class="field"><label for="pv-sup">Proveedor</label><select id="pv-sup"></select></div></div>
+      <div class="field" style="margin-top:14px"><label for="pv-text">Texto de la web</label><textarea id="pv-text" rows="6" placeholder="Pega aquí la lista de palas con sus precios"></textarea></div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="button" data-act="pv-read">Leer precios</button>
+        <label class="btn btn-ghost" for="pv-csv" style="cursor:pointer">Importar CSV</label><input type="file" id="pv-csv" accept=".csv,.txt,text/csv,text/plain" hidden>
+        <span class="form-error" id="pv-error" role="alert"></span>
+      </div>
+      <details class="pv-manual" style="margin-top:12px"><summary>Añadir una pala a mano</summary>
+        <div class="tool-body"><div class="fgrid"><div class="field"><label for="pv-m-name">Pala (marca, modelo y año)</label><input type="text" id="pv-m-name" placeholder="Nox AT10 Genius 18K Alum 2026" autocomplete="off"></div><div class="field"><label for="pv-m-price">Precio (€)</label><input type="text" id="pv-m-price" inputmode="decimal" placeholder="182,93" autocomplete="off"></div></div>
+        <div class="btn-row" style="margin-top:10px"><button class="btn btn-ghost" type="button" data-act="pv-manual">Añadir a la lista</button></div></div>
+      </details>
+      <div id="pv-preview"></div>
+    </div>
+    <div class="card">
+      <div class="sec-head"><h2>Comparativa</h2><span class="sub" id="cmp-sub"></span></div>
+      <div class="toolbar" style="margin-bottom:6px">
+        <label for="cmp-q">Buscar</label><input type="search" id="cmp-q" placeholder="genius 18k" autocomplete="off" style="max-width:220px">
+        <label for="cmp-brand">Marca</label><select id="cmp-brand"><option value="">Todas</option></select>
+      </div>
+      <div class="toolbar" style="margin-bottom:10px">
+        <label class="check" for="cmp-multi"><input type="checkbox" id="cmp-multi"> Solo palas en 2 o más proveedores</label>
+        <label class="check" for="cmp-nostock"><input type="checkbox" id="cmp-nostock"> Ocultar agotadas</label>
+      </div>
+      <div id="cmp-list"></div>
+      <p class="hint" style="margin-top:12px">Los precios con más de 7 días se marcan en ámbar: pueden haber cambiado. Para que dos proveedores se agrupen, el nombre de la pala debe ser parecido; si no se unen, avísame y afino el emparejado.</p>
     </div>
   </section>
 
@@ -693,7 +749,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   var dateShort = function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' }).replace(/\./g, ''); };
   var daysSince = function (iso) { return Math.round((Date.parse(todayISO() + 'T12:00:00') - Date.parse(iso + 'T12:00:00')) / 864e5); };
 
-  var state = { tab: 'resumen', period: 'all', demo: false, db: null, dbStatus: 'loading', loaded: { sales: false, ads: false, stock: false, quotes: false }, sales: [], ads: [], stock: [], editing: null, stockEditing: null, quotes: [], q: { id: null, lines: [{ product: '', units: '', cost: '' }] }, invoice: null, invoiceOrig: null, invoiceUnsaved: false, invoiceBusy: false, brandFilter: '', showAll: false };
+  var state = { tab: 'resumen', period: 'all', demo: false, db: null, dbStatus: 'loading', loaded: { sales: false, ads: false, stock: false, quotes: false }, sales: [], ads: [], stock: [], editing: null, stockEditing: null, quotes: [], q: { id: null, lines: [{ product: '', units: '', cost: '' }] }, invoice: null, invoiceOrig: null, invoiceUnsaved: false, invoiceBusy: false, brandFilter: '', showAll: false, prov: { suppliers: [], prices: [] } };
   var DEMO = null;
 
   // Importes en la moneda elegida. Coste y envío se pagan en euros; en dólares se pasan al cambio de la propia venta.
@@ -1129,6 +1185,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     BRANDS.forEach(function (b) { brands[b] = 1; });
     d.sales.concat(d.stock).forEach(function (o) { var p = splitProduct(o); if (p.brand) brands[p.brand] = 1; if (p.model) models[p.model] = 1; if (o.supplier) sups[o.supplier] = 1; });
     d.stock.forEach(function (o) { var p = splitProduct(o); if (p.model) stockModels[p.model] = 1; });
+    state.prov.suppliers.forEach(function (sp) { sups[sp.name] = 1; });
     var opts = function (obj) { return Object.keys(obj).sort().map(function (n) { return '<option value="' + esc(n) + '"></option>'; }).join(''); };
     $('#dl-brands').innerHTML = opts(brands); $('#dl-models').innerHTML = opts(models); $('#dl-suppliers').innerHTML = opts(sups); $('#dl-stock').innerHTML = opts(stockModels);
   }
@@ -1457,17 +1514,18 @@ details.tool[open] > summary::after { content: "\2212"; }
     $('#f-submit').disabled = off; $('#a-submit').disabled = off; $('#i-submit').disabled = off; $('#q-save').disabled = off;
     if (off) { $('#form-error').textContent = 'Esta vista no puede guardar datos. Recarga la página e inicia sesión.'; }
   }
-  function renderAll() { renderStatus(); renderResumen(); renderVentas(); renderAds(); renderStock(); renderQuoteList(); renderIG(); renderFol(); }
+  function renderAll() { renderStatus(); renderResumen(); renderVentas(); renderAds(); renderStock(); renderQuoteList(); renderIG(); renderFol(); renderProveedores(); }
   function setTab(t) {
     state.tab = t;
     setMenu(false);
     var lab = $('#tab-' + t); if (lab) $('#menu-label').textContent = lab.textContent;
-    ['resumen', 'ventas', 'b2b', 'inventario', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].forEach(function (k) {
+    ['resumen', 'ventas', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].forEach(function (k) {
       $('#view-' + k).hidden = k !== t;
       $('#tab-' + k).setAttribute('aria-selected', k === t ? 'true' : 'false');
     });
     if (t === 'resumen') { drawChart(); if (typeof loadFollowers === 'function') loadFollowers(false); }
     if (t === 'inventario') renderStock();
+    if (t === 'proveedores') renderProveedores();
     if (t === 'b2b') { renderQLines(); renderQuote(); renderQuoteList(); }
     if (t === 'instagram') loadInstagram(false);
     if (t === 'herramientas') openTools();
@@ -1492,6 +1550,17 @@ details.tool[open] > summary::after { content: "\2212"; }
     else if (act === 'pin-change') { startPin('create'); }
     else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
     else if (act === 'sign-out') { signOutNow(); }
+    else if (act === 'pv-read') { pvRead(); }
+    else if (act === 'pv-manual') { pvManual(); }
+    else if (act === 'pv-save') { pvSave(); }
+    else if (act === 'pv-clear') { PV.parsed = []; renderPreview(); }
+    else if (act === 'pv-more') { PV.shown += 40; renderCompare(); }
+    else if (act === 'pv-use') { pvUse(el.dataset.id); }
+    else if (act === 'pv-load-sup') { $('#pv-sup').value = el.dataset.id; $('#card-load').scrollIntoView({ block: 'start' }); $('#pv-text').focus(); }
+    else if (act === 'sup-del' || act === 'pv-del-price') {
+      if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
+      else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
+    }
     else if (act === 'fol-refresh') { loadFollowers(true); }
     else if (act === 'new-sale') { setTab('ventas'); window.scrollTo(0, 0); setTimeout(function () { $('#f-client').focus(); }, 30); }
     else if (act === 'demo-on') { state.demo = true; DEMO = null; renderAll(); resetForm(false); }
@@ -1529,6 +1598,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     }
   });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { setMenu(false); if (!$('#rc-modal').hidden) closeReceipt(); } });
+  bindProveedores();
   $('#form-venta').addEventListener('submit', saveSale);
   $('#form-ads').addEventListener('submit', saveAd);
   ['f-usd', 'f-cost', 'f-ship', 'f-rate'].forEach(function (id) { $('#' + id).addEventListener('input', updatePreview); });
@@ -1890,6 +1960,200 @@ details.tool[open] > summary::after { content: "\2212"; }
   });
   $('#s-carrier').addEventListener('change', updateCarrier);
 
+  /* ---------- Proveedores: lectura de precios pegados ---------- */
+  function pvNum(s) {
+    var t = String(s == null ? '' : s).replace(/[^\d.,]/g, ''); if (!t) return 0;
+    if (t.indexOf(',') > -1) t = t.replace(/\./g, '').replace(',', '.'); else if ((t.match(/\./g) || []).length > 1) t = t.replace(/\./g, '');
+    var n = parseFloat(t); return n > 0 ? Math.round(n * 100) / 100 : 0;
+  }
+  function pvKey(name) {
+    var k = String(name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    k = k.replace(/\bby\b[^0-9]*?(?=\b20\d\d\b|$)/g, ' ');
+    k = k.replace(/aluminizad[ao]s?/g, 'alum').replace(/\b(pala|palas|de|padel)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ');
+    return k.replace(/\s+/g, ' ').trim();
+  }
+  function pvAmounts(txt) { var out = []; String(txt).replace(/(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})\s*€/g, function (m, a, b) { out.push(pvNum(a + ',' + b)); return m; }); return out; }
+  function parsePrices(text) {
+    var items = []; var cur = null;
+    function push() { if (cur && cur.price > 0 && cur.name) items.push(cur); cur = null; }
+    function mk(name, url) { return { name: String(name).replace(/\s+/g, ' ').trim(), url: url || '', price: 0, old: 0, stock: 'unknown' }; }
+    function stockOf(line) { return /agotado|sin stock|no disponible|sin existencias/i.test(line) ? 'no' : /en stock|disponible/i.test(line) ? 'yes' : ''; }
+    function takePrice(line) {
+      if (!cur) return; var st = stockOf(line); if (st) cur.stock = st;
+      var om = line.match(/~~([^~]*)~~/); var old = om ? pvAmounts(om[1])[0] || 0 : 0;
+      var rest = line.replace(/~~[^~]*~~/g, ' '); var am = pvAmounts(rest); if (!am.length) return;
+      var price = om ? am[0] : am.length > 1 ? Math.min.apply(null, am) : am[0];
+      if (!om && am.length > 1) old = Math.max.apply(null, am);
+      if (!(cur.price > 0)) { cur.price = price; cur.old = old > price ? old : 0; }
+    }
+    String(text).replace(/\r/g, '').split('\n').forEach(function (raw) {
+      var line = raw.trim(); if (!line) return;
+      var c = line.match(/^([^;\t]{4,}?)[;\t]\s*(\d[\d.]*(?:,\d{1,2})?)\s*€?\s*$/);
+      if (c && pvNum(c[2]) > 0 && !/^\d/.test(c[1].trim())) { push(); items.push(Object.assign(mk(c[1]), { price: pvNum(c[2]) })); return; }
+      var link = line.match(/\[([^\]]+)\]\((https?:[^)\s]+)\)/);
+      if (link) { push(); cur = mk(link[1], link[2]); var after = line.replace(link[0], ' '); if (after.indexOf('€') > -1) takePrice(after); return; }
+      if (line.indexOf('€') > -1) {
+        if (!cur) {
+          var nm = line.replace(/~~[^~]*~~/g, ' ').replace(/(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})\s*€/g, ' ').replace(/[*_]/g, ' ').replace(/\b(en stock|agotado|sin stock)\b/ig, ' ').replace(/\s+/g, ' ').trim();
+          if (nm.length < 6 || !/[a-z]{3}/i.test(nm)) return; cur = mk(nm);
+        }
+        takePrice(line); return;
+      }
+      if (/^[-+]?\d+\s*%$/.test(line) || /^[*•\-–]+$/.test(line)) return;
+      var st = stockOf(line);
+      if (st && cur && line.length < 40) { cur.stock = st; return; }
+      var name = line.replace(/^[*•\-–]\s+/, '').replace(/[*_#]/g, '').trim();
+      if (name.length < 6 || !/[a-z]{3}/i.test(name) || /^(a[ñn]adir|ver |comprar|filtr|ordenar|mostrar|inicio|categor|precio|marca|stock|nuevo|oferta|-\d)/i.test(name)) return;
+      if (cur && cur.price > 0) push(); cur = mk(name);
+    });
+    push(); return items;
+  }
+
+  /* ---------- Proveedores: lista, carga de precios y comparativa ---------- */
+  var PV = { parsed: [], shown: 40 };
+  function pvSupName(id) { var s = state.prov.suppliers.filter(function (x) { return x.id === id; })[0]; return s ? s.name : '(proveedor borrado)'; }
+  function pvDays(iso) { if (!iso) return 999; return Math.round((new Date(todayISO() + 'T12:00:00') - new Date(iso + 'T12:00:00')) / 86400000); }
+  function pvAgo(iso) { var d = pvDays(iso); return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : 'hace ' + d + ' días'; }
+  function pvHash(str) { var h = 5381; for (var i = 0; i < str.length; i++) { h = ((h << 5) + h + str.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
+  function pvId(supId, key) { return supId + '__' + slug(key).slice(0, 40) + '_' + pvHash(key); }
+  function pvMeta(name) { var y = String(name).match(/\b(20\d\d)\b/); return { brand: brandOf(name, null), year: y ? y[1] : '' }; }
+  function pvStockChip(st) { return st === 'yes' ? '<span class="chip chip-good">En stock</span>' : st === 'no' ? '<span class="chip chip-warn">Agotado</span>' : '<span class="chip">Stock sin confirmar</span>'; }
+  function pvDiffText(d) { return (d > 0 ? '+' : d < 0 ? '−' : '') + fEUR.format(Math.abs(d)); }
+
+  function renderSuppliers() {
+    var P = state.prov; var ul = $('#sup-list'); if (!ul) return;
+    $('#sp-count').textContent = P.suppliers.length ? P.suppliers.length + (P.suppliers.length === 1 ? ' proveedor' : ' proveedores') : '';
+    if (!P.suppliers.length) { ul.innerHTML = '<li class="muted pad">Añade tu primer proveedor para empezar a comparar.</li>'; }
+    else ul.innerHTML = P.suppliers.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (s) {
+      var mine = P.prices.filter(function (p) { return p.supplierId === s.id; }); var last = mine.reduce(function (m, p) { return p.updated > m ? p.updated : m; }, '');
+      return '<li class="sale"><div class="sale-main"><strong>' + esc(s.name) + '</strong><span>' + mine.length + (mine.length === 1 ? ' pala' : ' palas') + (last ? ' · precios de ' + esc(pvAgo(last)) : ' · sin precios todavía') + '</span></div><div class="sale-actions">' +
+        (s.url ? '<a class="link" href="' + esc(s.url) + '" target="_blank" rel="noopener">Abrir tienda</a>' : '') + '<button class="link" type="button" data-act="pv-load-sup" data-id="' + esc(s.id) + '">Cargar precios</button><button class="link danger" type="button" data-act="sup-del" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
+    }).join('');
+    var sel = $('#pv-sup'); var keep = sel.value;
+    sel.innerHTML = '<option value="">Elige el proveedor…</option>' + P.suppliers.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>'; }).join('');
+    if (keep && P.suppliers.some(function (s) { return s.id === keep; })) sel.value = keep;
+  }
+  async function saveSupplier(e) {
+    e.preventDefault(); var err = $('#sup-error'); err.textContent = '';
+    var name = $('#sup-name').value.trim(); var url = $('#sup-url').value.trim();
+    if (!name) { err.textContent = 'Escribe el nombre del proveedor.'; return; }
+    if (state.demo) { err.textContent = 'Sal del ejemplo para guardar.'; return; }
+    if (!state.db) { err.textContent = 'No se puede guardar ahora. Recarga la página e inicia sesión.'; return; }
+    if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try { await state.db.collection('suppliers').doc(slug(name)).set({ name: name, url: url }); $('#sup-name').value = ''; $('#sup-url').value = ''; toast('Proveedor guardado'); }
+    catch (ex) { err.textContent = 'No se pudo guardar. Inténtalo de nuevo.'; }
+  }
+  async function deleteSupplier(id) {
+    if (!state.db) return;
+    try {
+      var jobs = state.prov.prices.filter(function (p) { return p.supplierId === id; }).map(function (p) { return state.db.collection('prices').doc(p.id).delete(); });
+      jobs.push(state.db.collection('suppliers').doc(id).delete()); await Promise.all(jobs); toast('Proveedor borrado');
+    } catch (ex) { toast('No se pudo borrar. Inténtalo de nuevo.'); }
+  }
+
+  function pvStatus(supId, it) {
+    var ex = state.prov.prices.filter(function (p) { return p.id === pvId(supId, it.key); })[0];
+    it.prev = ex ? ex.price : 0; it.status = !ex ? 'new' : Math.abs(ex.price - it.price) < 0.005 ? 'same' : it.price > ex.price ? 'up' : 'down';
+    return it;
+  }
+  function renderPreview() {
+    var box = $('#pv-preview'); var L = PV.parsed;
+    if (!L.length) { box.innerHTML = ''; return; }
+    var cnt = { new: 0, up: 0, down: 0, same: 0 }; L.forEach(function (x) { cnt[x.status]++; });
+    var on = L.filter(function (x) { return x.on; }).length;
+    var h = '<p class="hint" style="margin-top:14px"><strong>Encontré ' + L.length + (L.length === 1 ? ' pala' : ' palas') + '</strong>: ' + cnt.new + ' nuevas, ' + cnt.down + ' más baratas, ' + cnt.up + ' más caras, ' + cnt.same + ' sin cambio. Revisa y desmarca lo que no quieras guardar.</p>';
+    h += '<div class="tbl-wrap"><table class="tbl"><thead><tr><th></th><th>Pala</th><th class="num">Precio</th></tr></thead><tbody>';
+    L.forEach(function (x, i) {
+      var chg = x.status === 'new' ? '<span class="chip chip-good">Nueva</span>' : x.status === 'same' ? '<span class="muted">Igual</span>' : '<span class="chip ' + (x.status === 'down' ? 'chip-good' : 'chip-warn') + '">' + (x.status === 'down' ? '▼ ' : '▲ ') + esc(pvDiffText(x.price - x.prev)) + '</span>';
+      h += '<tr><td><input type="checkbox" data-i="' + i + '"' + (x.on ? ' checked' : '') + ' aria-label="Guardar ' + esc(x.name) + '"></td><td class="pname">' + esc(x.name) + '<br>' + pvStockChip(x.stock) + '</td><td class="num">' + esc(fEUR.format(x.price)) + '<br>' + chg + '</td></tr>';
+    });
+    h += '</tbody></table></div><div class="form-actions"><button class="btn btn-primary" type="button" data-act="pv-save"' + (on ? '' : ' disabled') + '>Guardar ' + on + (on === 1 ? ' precio' : ' precios') + '</button><button class="btn btn-ghost" type="button" data-act="pv-clear">Descartar</button></div>';
+    box.innerHTML = h;
+  }
+  function pvRead() {
+    var err = $('#pv-error'); err.textContent = '';
+    var sup = $('#pv-sup').value; if (!sup) { err.textContent = 'Elige primero el proveedor.'; return; }
+    var txt = $('#pv-text').value; if (!txt.trim()) { err.textContent = 'Pega el texto de la web del proveedor.'; return; }
+    var items = parsePrices(txt).map(function (x) { x.key = pvKey(x.name); x.on = true; return pvStatus(sup, x); }).filter(function (x) { return x.key; });
+    var seen = {}; items = items.filter(function (x) { if (seen[x.key]) return false; seen[x.key] = 1; return true; });
+    if (!items.length) { PV.parsed = []; renderPreview(); err.textContent = 'No encontré palas con precio en ese texto. Copia la lista completa (Ctrl+A) o usa «Añadir a mano».'; return; }
+    PV.parsed = items; renderPreview();
+  }
+  function pvManual() {
+    var err = $('#pv-error'); err.textContent = '';
+    var sup = $('#pv-sup').value; if (!sup) { err.textContent = 'Elige primero el proveedor.'; return; }
+    var name = $('#pv-m-name').value.trim(); var price = pvNum($('#pv-m-price').value);
+    if (name.length < 3 || !(price > 0)) { err.textContent = 'Escribe el nombre de la pala y su precio.'; return; }
+    var key = pvKey(name); var it = pvStatus(sup, { name: name, url: '', price: price, old: 0, stock: 'unknown', key: key, on: true });
+    PV.parsed = PV.parsed.filter(function (x) { return x.key !== key; }).concat([it]); $('#pv-m-name').value = ''; $('#pv-m-price').value = ''; renderPreview();
+  }
+  async function pvSave() {
+    var err = $('#pv-error'); err.textContent = '';
+    var sup = $('#pv-sup').value; if (!sup) { err.textContent = 'Elige el proveedor.'; return; }
+    if (state.demo) { err.textContent = 'Sal del ejemplo para guardar.'; return; }
+    if (!state.db) { err.textContent = 'No se puede guardar ahora. Recarga la página e inicia sesión.'; return; }
+    var list = PV.parsed.filter(function (x) { return x.on; }); if (!list.length) return;
+    var btn = $('#pv-preview [data-act="pv-save"]'); if (btn) btn.disabled = true;
+    try {
+      for (var i = 0; i < list.length; i += 20) {
+        await Promise.all(list.slice(i, i + 20).map(function (x) {
+          var ex = state.prov.prices.filter(function (p) { return p.id === pvId(sup, x.key); })[0]; var m = pvMeta(x.name);
+          var changed = ex && Math.abs(ex.price - x.price) >= 0.005;
+          return state.db.collection('prices').doc(pvId(sup, x.key)).set({ supplierId: sup, name: x.name, key: x.key, url: x.url || (ex && ex.url) || '', price: x.price, old: x.old || 0, stock: x.stock, updated: todayISO(), brand: m.brand, year: m.year, prev: changed ? ex.price : ex ? ex.prev || 0 : 0, prevDate: changed ? ex.updated : ex ? ex.prevDate || '' : '' });
+        }));
+      }
+      toast(list.length + (list.length === 1 ? ' precio guardado' : ' precios guardados')); PV.parsed = []; $('#pv-text').value = ''; renderPreview();
+    } catch (ex) { err.textContent = 'No se pudieron guardar todos. Inténtalo de nuevo.'; if (btn) btn.disabled = false; }
+  }
+  function renderCompare() {
+    var P = state.prov; var box = $('#cmp-list'); if (!box) return;
+    var brands = {}; P.prices.forEach(function (p) { if (p.brand) brands[p.brand] = 1; });
+    var bsel = $('#cmp-brand'); var bkeep = bsel.value;
+    bsel.innerHTML = '<option value="">Todas</option>' + Object.keys(brands).sort().map(function (b) { return '<option>' + esc(b) + '</option>'; }).join(''); bsel.value = brands[bkeep] ? bkeep : '';
+    var q = pvKey($('#cmp-q').value).split(' ').filter(Boolean); var multi = $('#cmp-multi').checked; var hideNo = $('#cmp-nostock').checked;
+    var groups = {}; P.prices.forEach(function (p) { (groups[p.key] = groups[p.key] || []).push(p); });
+    var list = Object.keys(groups).map(function (k) { var items = groups[k].slice().sort(function (a, b) { return a.price - b.price; }); return { key: k, items: items, brand: items[0].brand || '', name: items.reduce(function (m, i) { return i.name.length < m.length ? i.name : m; }, items[0].name) }; }).filter(function (g) {
+      if (bsel.value && g.brand !== bsel.value) return false; if (multi && new Set(g.items.map(function (i) { return i.supplierId; })).size < 2) return false;
+      if (hideNo && g.items.every(function (i) { return i.stock === 'no'; })) return false;
+      return q.every(function (t) { return g.key.indexOf(t) > -1; });
+    }).sort(function (a, b) { return a.brand.localeCompare(b.brand) || a.name.localeCompare(b.name); });
+    $('#cmp-sub').textContent = P.prices.length ? list.length + ' de ' + Object.keys(groups).length + ' palas' : '';
+    if (!P.prices.length) { box.innerHTML = '<p class="muted">Todavía no hay precios. Carga los de tu primer proveedor arriba.</p>'; return; }
+    if (!list.length) { box.innerHTML = '<p class="muted">Ninguna pala coincide con esos filtros.</p>'; return; }
+    box.innerHTML = list.slice(0, PV.shown).map(function (g) {
+      var avail = g.items.filter(function (i) { return i.stock !== 'no'; }); var best = avail[0] || g.items[0]; var next = avail[1];
+      var nsup = new Set(g.items.map(function (i) { return i.supplierId; })).size;
+      var h = '<div class="pv-item"><div class="pv-head"><strong>' + esc(g.name) + '</strong>' + (g.brand ? ' <span class="chip">' + esc(g.brand) + '</span>' : '') + (nsup > 1 ? ' <span class="chip chip-good">' + nsup + ' proveedores</span>' : '') + '</div><ul class="pv-offers">';
+      g.items.forEach(function (o) {
+        var d = pvDays(o.updated); var chg = o.prev > 0 && Math.abs(o.prev - o.price) >= 0.005 ? ' <span class="muted">(antes ' + esc(fEUR.format(o.prev)) + ')</span>' : '';
+        h += '<li class="' + (o === best && g.items.length > 1 ? 'best' : '') + '"><span class="pv-off-sup">' + esc(pvSupName(o.supplierId)) + '</span><span class="pv-price">' + esc(fEUR.format(o.price)) + '</span>' + pvStockChip(o.stock) + (d > 7 ? ' <span class="chip chip-warn">' + esc(pvAgo(o.updated)) + '</span>' : ' <span class="muted">' + esc(pvAgo(o.updated)) + '</span>') + chg +
+          (o.url ? ' <a class="link" href="' + esc(o.url) + '" target="_blank" rel="noopener">Abrir</a>' : '') + ' <button class="link danger" type="button" data-act="pv-del-price" data-id="' + esc(o.id) + '">Quitar</button></li>';
+      });
+      h += '</ul><div class="pv-foot">' + (next ? '<span class="pos-text">Mejor: ' + esc(pvSupName(best.supplierId)) + ' · ahorras ' + esc(fEUR.format(next.price - best.price)) + ' (' + esc(fPct.format((next.price - best.price) / next.price)) + ') frente al siguiente.</span> ' : '') +
+        '<button class="link" type="button" data-act="pv-use" data-id="' + esc(best.id) + '">Usar en inventario</button></div></div>';
+      return h;
+    }).join('') + (list.length > PV.shown ? '<div class="btn-row" style="margin-top:12px"><button class="btn btn-ghost" type="button" data-act="pv-more">Mostrar más (' + (list.length - PV.shown) + ' restantes)</button></div>' : '');
+  }
+  function renderProveedores() { renderSuppliers(); renderCompare(); }
+  function pvUse(id) {
+    var p = state.prov.prices.filter(function (x) { return x.id === id; })[0]; if (!p) return;
+    var sp = splitProduct({ product: p.name, brand: p.brand });
+    resetStockForm(); setTab('inventario');
+    $('#i-brand').value = p.brand || sp.brand; $('#i-year').value = p.year || ''; $('#i-supplier').value = pvSupName(p.supplierId); $('#i-cost').value = toField(p.price);
+    var model = String(p.name).replace(new RegExp('^' + (p.brand || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'i'), '').replace(/\s*\b20\d\d\b\s*$/, '').trim();
+    $('#i-product').value = model; $('#form-stock').scrollIntoView({ block: 'start' }); $('#i-qty').focus();
+  }
+  function bindProveedores() {
+    $('#form-sup').addEventListener('submit', saveSupplier);
+    $('#pv-csv').addEventListener('change', function () {
+      var f = this.files && this.files[0]; this.value = ''; if (!f) return;
+      var r = new FileReader(); r.onload = function () { $('#pv-text').value = String(r.result || ''); pvRead(); }; r.readAsText(f);
+    });
+    $('#pv-preview').addEventListener('change', function (e) { var c = e.target.closest('input[data-i]'); if (!c) return; PV.parsed[+c.dataset.i].on = c.checked; renderPreview(); });
+    ['cmp-q'].forEach(function (id) { $('#' + id).addEventListener('input', function () { PV.shown = 40; renderCompare(); }); });
+    ['cmp-brand', 'cmp-multi', 'cmp-nostock'].forEach(function (id) { $('#' + id).addEventListener('change', function () { PV.shown = 40; renderCompare(); }); });
+  }
+
   /* ---------- Acceso (Supabase Auth + PIN de este dispositivo) ---------- */
   var A = window.AstroAuth;
   var PIN_KEY = 'astro.pin';
@@ -1975,7 +2239,7 @@ details.tool[open] > summary::after { content: "\2212"; }
 
   /* ---------- Arranque ---------- */
   var h0 = location.hash.replace('#', '');
-  if (['resumen', 'ventas', 'b2b', 'inventario', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
+  if (['resumen', 'ventas', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
   $('#a-month').value = todayISO().slice(0, 7);
   resetQuote();
   resetForm(false);
@@ -1999,6 +2263,14 @@ details.tool[open] > summary::after { content: "\2212"; }
     db.collection('quotes').onSnapshot(function (snap) {
       state.quotes = snap.docs.map(function (d) { var o = d.data() || {}; return { id: d.id, client: String(o.client || ''), date: String(o.date || ''), cur: o.cur === 'EUR' ? 'EUR' : 'USD', rate: +o.rate || 0, shipC: +o.shipC || 0, shipP: +o.shipP || 0, valid: +o.valid || 0, note: String(o.note || ''), lines: (o.lines || []).map(function (l) { return { product: String(l.product || ''), units: +l.units || 0, cost: +l.cost || 0 }; }), units: +o.units || 0, pct: +o.pct || 0, total: +o.total || 0, profit: +o.profit || 0 }; });
       state.loaded.quotes = true; renderAll();
+    }, onErr);
+    db.collection('suppliers').onSnapshot(function (snap) {
+      state.prov.suppliers = snap.docs.map(function (d) { var o = d.data() || {}; return { id: d.id, name: String(o.name || d.id), url: String(o.url || '') }; });
+      fillLists(); renderProveedores();
+    }, onErr);
+    db.collection('prices').onSnapshot(function (snap) {
+      state.prov.prices = snap.docs.map(function (d) { var o = d.data() || {}; return { id: d.id, supplierId: String(o.supplierId || ''), name: String(o.name || ''), key: String(o.key || pvKey(o.name)), url: String(o.url || ''), price: +o.price || 0, old: +o.old || 0, stock: o.stock === 'yes' || o.stock === 'no' ? o.stock : 'unknown', updated: String(o.updated || ''), brand: String(o.brand || ''), year: String(o.year || ''), prev: +o.prev || 0, prevDate: String(o.prevDate || '') }; });
+      renderProveedores();
     }, onErr);
     db.collection('stock').onSnapshot(function (snap) {
       state.stock = snap.docs.map(function (d) { var o = d.data() || {}; return { id: d.id, product: String(o.product || ''), brand: String(o.brand || ''), model: String(o.model || ''), year: String(o.year || ''), supplier: String(o.supplier || ''), bought: +o.bought || 0, cost: +o.cost || 0, min: o.min == null ? 1 : +o.min || 0 }; });
