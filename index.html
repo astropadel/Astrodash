@@ -272,6 +272,11 @@ details.tool[open] > summary::after { content: "\2212"; }
   .tab { padding-inline: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.sfilter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.chip-info { background: var(--accent-soft); color: var(--accent); }
+.pend-card { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .update-banner { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; align-items: center; gap: 12px; background: var(--fg); color: var(--bg); padding: 10px 12px 10px 16px; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: calc(100% - 32px); font-size: 15px; }
 .update-banner[hidden] { display: none; }
 .update-banner .btn { min-height: 36px; }
@@ -361,6 +366,7 @@ details.tool[open] > summary::after { content: "\2212"; }
         <div class="field"><label for="f-phone">Teléfono</label><input type="text" id="f-phone" inputmode="tel" placeholder="+34 600 000 000" autocomplete="off"></div>
         <div class="field" style="grid-column:1/-1"><label for="f-invoice">Factura del envío (PDF o imagen)</label><input type="file" id="f-invoice" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"><div class="hint" id="inv-status" role="status"></div></div>
         <div class="field"><label for="f-barcode">Código de barras (opcional)</label><input type="text" id="f-barcode" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label for="f-status">Estado del pedido</label><select id="f-status"><option value="pendiente">Pendiente de envío</option><option value="enviado">Enviado</option><option value="entregado">Entregado</option></select></div>
         <div class="field"><label for="f-method">Método de pago</label><input type="text" id="f-method" list="dl-methods" placeholder="PayPal, Zelle…" autocomplete="off"><datalist id="dl-methods"><option value="PayPal"></option><option value="Zelle"></option><option value="Transferencia"></option><option value="Binance Pay"></option><option value="Stripe"></option><option value="Efectivo"></option></datalist></div>
         <div class="field"><label for="f-usd">Cobrado (US$)</label><input type="text" id="f-usd" inputmode="decimal" placeholder="289" autocomplete="off" required></div>
         <div class="field"><label for="f-cost">Coste de compra (€)</label><input type="text" id="f-cost" inputmode="decimal" placeholder="168" autocomplete="off" required></div>
@@ -376,6 +382,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     </form>
     <div class="card">
       <div class="sec-head"><h2>Ventas registradas</h2><span class="sub" id="sales-count"></span></div>
+      <div class="sfilter" id="status-filter" role="group" aria-label="Filtrar por estado del pedido"></div>
       <ul class="sales" id="sales-list"></ul>
       <div class="btn-row" id="sales-more" hidden style="margin-top:12px"><button class="btn btn-ghost" type="button" data-act="show-all">Mostrar todas</button></div>
     </div>
@@ -672,6 +679,12 @@ details.tool[open] > summary::after { content: "\2212"; }
               var r = await sb.from('docs').upsert({ collection: c, id: id, data: JSON.parse(JSON.stringify(v)), updated_at: new Date().toISOString() });
               if (r.error) throw r.error; notify(c);
             },
+            update: async function (patch) {
+              var cur = await sb.from('docs').select('data').eq('collection', c).eq('id', id).maybeSingle();
+              if (cur.error) throw cur.error; var base = (cur.data && cur.data.data) || {};
+              var r = await sb.from('docs').upsert({ collection: c, id: id, data: Object.assign({}, base, JSON.parse(JSON.stringify(patch))), updated_at: new Date().toISOString() });
+              if (r.error) throw r.error; notify(c);
+            },
             delete: async function () {
               var r = await sb.from('docs').delete().eq('collection', c).eq('id', id);
               if (r.error) throw r.error; notify(c);
@@ -754,7 +767,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   var dateShort = function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' }).replace(/\./g, ''); };
   var daysSince = function (iso) { return Math.round((Date.parse(todayISO() + 'T12:00:00') - Date.parse(iso + 'T12:00:00')) / 864e5); };
 
-  var state = { tab: 'resumen', period: 'all', demo: false, db: null, dbStatus: 'loading', loaded: { sales: false, ads: false, stock: false, quotes: false }, sales: [], ads: [], stock: [], editing: null, stockEditing: null, quotes: [], q: { id: null, lines: [{ product: '', units: '', cost: '' }] }, invoice: null, invoiceOrig: null, invoiceUnsaved: false, invoiceBusy: false, brandFilter: '', showAll: false, prov: { suppliers: [], prices: [] } };
+  var state = { tab: 'resumen', period: 'all', demo: false, db: null, dbStatus: 'loading', loaded: { sales: false, ads: false, stock: false, quotes: false }, sales: [], ads: [], stock: [], editing: null, stockEditing: null, quotes: [], q: { id: null, lines: [{ product: '', units: '', cost: '' }] }, invoice: null, invoiceOrig: null, invoiceUnsaved: false, invoiceBusy: false, brandFilter: '', showAll: false, statusFilter: '', prov: { suppliers: [], prices: [] } };
   var DEMO = null;
 
   // Importes en la moneda elegida. Coste y envío se pagan en euros; en dólares se pasan al cambio de la propia venta.
@@ -775,7 +788,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   function isLoading() { return state.dbStatus === 'loading' || (state.dbStatus === 'ok' && !(state.loaded.sales && state.loaded.ads && state.loaded.stock && state.loaded.quotes)); }
 
   function normSale(d, id) {
-    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
+    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
   }
 
   function makeDemo() {
@@ -890,6 +903,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var plabel = all ? 'Todo el tiempo' : monthLong(state.period);
 
     var h = '';
+    (function () { var c = stCounts(d.sales); if (c.pendiente + c.enviado) h += '<section class="card pend-card" aria-label="Pedidos en curso"><div><strong>Pedidos en curso</strong><div class="muted">' + c.pendiente + (c.pendiente === 1 ? ' pendiente de envío' : ' pendientes de envío') + ' · ' + c.enviado + (c.enviado === 1 ? ' enviado' : ' enviados') + ' sin entregar</div></div><button class="btn btn-ghost btn-sm" type="button" data-act="go-pending">Ver pendientes</button></section>'; })();
     h += '<section class="card hero" aria-label="Beneficio">';
     h += '<div><p class="eyebrow">Beneficio neto · ' + esc(plabel) + '</p>';
     h += '<p class="hero-num' + (S.net < 0 ? ' neg' : '') + '">' + esc(fM.format(S.net)) + '</p>';
@@ -1000,12 +1014,20 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   /* ---------- Ventas ---------- */
+  var ST_LABEL = { pendiente: 'Pendiente de envío', enviado: 'Enviado', entregado: 'Entregado' };
+  var ST_CHIP = { pendiente: 'chip-warn', enviado: 'chip-info', entregado: 'chip-good' };
+  var ST_NEXT = { pendiente: ['enviado', 'Marcar enviado'], enviado: ['entregado', 'Marcar entregado'] };
+  function stCounts(list) { var c = { pendiente: 0, enviado: 0, entregado: 0 }; list.forEach(function (x) { c[x.status] = (c[x.status] || 0) + 1; }); return c; }
   function renderVentas() {
-    var d = data(); var list = sortSales(d.sales);
+    var d = data(); var all = sortSales(d.sales); var cnt = stCounts(all);
+    var fl = $('#status-filter');
+    fl.hidden = !all.length;
+    fl.innerHTML = [['', 'Todos (' + all.length + ')'], ['pendiente', 'Pendientes (' + cnt.pendiente + ')'], ['enviado', 'Enviados (' + cnt.enviado + ')'], ['entregado', 'Entregados (' + cnt.entregado + ')']].map(function (o) { return '<button class="sf-btn" type="button" data-act="status-filter" data-v="' + o[0] + '" aria-pressed="' + (state.statusFilter === o[0] ? 'true' : 'false') + '">' + esc(o[1]) + '</button>'; }).join('');
+    var list = state.statusFilter ? all.filter(function (x) { return x.status === state.statusFilter; }) : all;
     $('#sales-count').textContent = list.length ? list.length + (list.length === 1 ? ' venta' : ' ventas') : '';
     var ul = $('#sales-list');
     if (isLoading()) { ul.innerHTML = '<li class="muted pad">Cargando…</li>'; $('#sales-more').hidden = true; return; }
-    if (!list.length) { ul.innerHTML = '<li class="muted pad">Aún no has registrado ninguna venta. Rellena el formulario de arriba para la primera.</li>'; $('#sales-more').hidden = true; return; }
+    if (!list.length) { ul.innerHTML = '<li class="muted pad">' + (all.length ? 'No hay pedidos con ese estado.' : 'Aún no has registrado ninguna venta. Rellena el formulario de arriba para la primera.') + '</li>'; $('#sales-more').hidden = true; return; }
     var shown = state.showAll ? list : list.slice(0, 40);
     ul.innerHTML = shown.map(function (s) {
       var c = calc(s);
@@ -1014,7 +1036,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       if (s.cedula) det.push('C.I. ' + s.cedula);
       if (s.supplier) det.push('prov. ' + s.supplier);
       if (s.barcode) det.push('cód. ' + s.barcode);
-      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(s.product || '(sin nombre)') + '</strong>' + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(s.usd)) + '</span></div><div class="sale-actions">' + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
+      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(s.product || '(sin nombre)') + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(s.usd)) + '</span></div><div class="sale-actions">' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
     }).join('');
     var more = $('#sales-more'); more.hidden = state.showAll || list.length <= 40;
     if (!more.hidden) $('button', more).textContent = 'Mostrar las ' + list.length + ' ventas';
@@ -1023,6 +1045,11 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   function lastSale() { var d = data(); var l = sortSales(d.sales); return l[0] || null; }
+  async function advStatus(id, to) {
+    if (!state.db || state.demo) { toast('No se puede cambiar el estado ahora.'); return; }
+    try { await state.db.collection('sales').doc(id).update({ status: to }); toast(to === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido marcado como entregado'); }
+    catch (ex) { toast('No se pudo cambiar el estado. Inténtalo de nuevo.'); }
+  }
   function seedSaleDefaults() {
     if (state.editing || state.demo) return;
     var ls = lastSale(); var ch = false;
@@ -1092,7 +1119,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
   function readSale() {
     return {
-      date: $('#f-date').value, client: $('#f-client').value.trim(), fullname: $('#f-fullname').value.trim(), cedula: $('#f-cedula').value.trim(), brand: $('#f-brand').value.trim(), model: $('#f-model').value.trim(), year: $('#f-year').value.trim(), supplier: $('#f-supplier').value.trim(), street: $('#f-street').value.trim(), city: $('#f-city').value.trim(), phone: $('#f-phone').value.trim(), product: compose($('#f-brand').value, $('#f-model').value, $('#f-year').value), barcode: $('#f-barcode').value.trim(), method: $('#f-method').value.trim(),
+      date: $('#f-date').value, client: $('#f-client').value.trim(), fullname: $('#f-fullname').value.trim(), cedula: $('#f-cedula').value.trim(), status: $('#f-status').value || 'pendiente', brand: $('#f-brand').value.trim(), model: $('#f-model').value.trim(), year: $('#f-year').value.trim(), supplier: $('#f-supplier').value.trim(), street: $('#f-street').value.trim(), city: $('#f-city').value.trim(), phone: $('#f-phone').value.trim(), product: compose($('#f-brand').value, $('#f-model').value, $('#f-year').value), barcode: $('#f-barcode').value.trim(), method: $('#f-method').value.trim(),
       usd: num($('#f-usd').value), cost: num($('#f-cost').value), ship: isNaN(num($('#f-ship').value)) ? 0 : num($('#f-ship').value), rate: num($('#f-rate').value)
     };
   }
@@ -1128,7 +1155,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   function editSale(id) {
     var s = data().sales.filter(function (x) { return x.id === id; })[0]; if (!s) return;
     setTab('ventas');
-    $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
+    $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; $('#f-status').value = s.status; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
     $('#f-usd').value = toField(s.usd); $('#f-cost').value = toField(s.cost); $('#f-ship').value = toField(s.ship); $('#f-rate').value = toField(s.rate);
     state.editing = id; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
     updatePreview(); $('#form-venta').scrollIntoView({ block: 'start' });
@@ -1312,7 +1339,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var stamp = todayISO(); var name, body;
     if (kind === 'sales') {
       name = 'astrodash-ventas-' + stamp + '.csv';
-      body = toCSV(['Fecha', 'Nombre y apellido', 'Cédula', 'Usuario de Instagram', 'Marca', 'Modelo', 'Año', 'Proveedor', 'Calle', 'Ciudad', 'Teléfono', 'Factura de envío', 'Producto', 'Código de barras', 'Método de pago', 'Cobrado (USD)', 'Coste (EUR)', 'Envío (EUR)', 'Cambio USD/EUR', 'Ingreso (EUR)', 'Beneficio (EUR)', 'Beneficio (USD)'], sortSales(state.sales).map(function (x) { var sp = splitProduct(x); var eur = x.rate > 0 ? x.usd / x.rate : 0; return [x.date, x.fullname, x.cedula, x.client, sp.brand, sp.model, sp.year, x.supplier, x.street, x.city, x.phone, x.invoice ? 'Sí' : 'No', x.product, x.barcode, x.method, csvNum(x.usd), csvNum(x.cost), csvNum(x.ship), csvNum(x.rate), csvNum(eur.toFixed(2)), csvNum((eur - x.cost - x.ship).toFixed(2)), csvNum((x.usd - (x.cost + x.ship) * x.rate).toFixed(2))]; }));
+      body = toCSV(['Fecha', 'Estado del pedido', 'Nombre y apellido', 'Cédula', 'Usuario de Instagram', 'Marca', 'Modelo', 'Año', 'Proveedor', 'Calle', 'Ciudad', 'Teléfono', 'Factura de envío', 'Producto', 'Código de barras', 'Método de pago', 'Cobrado (USD)', 'Coste (EUR)', 'Envío (EUR)', 'Cambio USD/EUR', 'Ingreso (EUR)', 'Beneficio (EUR)', 'Beneficio (USD)'], sortSales(state.sales).map(function (x) { var sp = splitProduct(x); var eur = x.rate > 0 ? x.usd / x.rate : 0; return [x.date, ST_LABEL[x.status], x.fullname, x.cedula, x.client, sp.brand, sp.model, sp.year, x.supplier, x.street, x.city, x.phone, x.invoice ? 'Sí' : 'No', x.product, x.barcode, x.method, csvNum(x.usd), csvNum(x.cost), csvNum(x.ship), csvNum(x.rate), csvNum(eur.toFixed(2)), csvNum((eur - x.cost - x.ship).toFixed(2)), csvNum((x.usd - (x.cost + x.ship) * x.rate).toFixed(2))]; }));
     } else if (kind === 'ads') {
       name = 'astrodash-publicidad-' + stamp + '.csv';
       body = toCSV(['Mes', 'Gasto (EUR)', 'Nota'], state.ads.slice().sort(function (a, b) { return a.month < b.month ? -1 : 1; }).map(function (a) { return [a.month, csvNum(a.amount), a.note]; }));
@@ -1566,6 +1593,9 @@ details.tool[open] > summary::after { content: "\2212"; }
     else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
     else if (act === 'sign-out') { signOutNow(); }
     else if (act === 'app-update') { try { clearTimeout(draftTimer); draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild || Date.now()); }
+    else if (act === 'status-filter') { state.statusFilter = el.dataset.v || ''; state.showAll = false; renderVentas(); }
+    else if (act === 'adv-status') { advStatus(el.dataset.id, el.dataset.to); }
+    else if (act === 'go-pending') { state.statusFilter = 'pendiente'; setTab('ventas'); renderVentas(); }
     else if (act === 'pv-read') { pvRead(); }
     else if (act === 'pv-manual') { pvManual(); }
     else if (act === 'pv-save') { pvSave(); }
@@ -2222,7 +2252,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792598231'; var newBuild = '';
+  var BUILD_ID = '1792598795'; var newBuild = '';
   function checkUpdate() {
     try {
       fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
