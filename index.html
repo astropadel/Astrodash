@@ -1321,7 +1321,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       body = toCSV(['Producto', 'Proveedor', 'Comprado', 'Vendido', 'En stock', 'Coste por unidad (EUR)', 'Dinero parado (EUR)'], stockRows({ sales: state.sales, stock: state.stock }).map(function (r) { return [r.product, r.supplier, r.bought, r.sold, r.left, csvNum(r.cost), csvNum(r.tied.toFixed(2))]; }));
     } else {
       name = 'astrodash-copia-completa-' + stamp + '.json';
-      body = JSON.stringify({ app: 'AstroDash', exportado: new Date().toISOString(), ventas: state.sales, publicidad: state.ads, inventario: state.stock, presupuestos: state.quotes }, null, 2);
+      body = JSON.stringify({ app: 'AstroDash', exportado: new Date().toISOString(), ventas: state.sales, publicidad: state.ads, inventario: state.stock, presupuestos: state.quotes, proveedores: state.prov.suppliers, precios: state.prov.prices }, null, 2);
     }
     try { await dl.save({ filename: name, data: body }); msg.textContent = 'Archivo preparado: ' + name; }
     catch (ex) { msg.textContent = ex && ex.code === 'declined' ? 'Descarga cancelada.' : 'No se pudo guardar el archivo en esta vista.'; }
@@ -1347,6 +1347,8 @@ details.tool[open] > summary::after { content: "\2212"; }
     put('ads', data.publicidad, function (o) { return o.month; });
     put('stock', data.inventario, function (o) { return o.id; });
     put('quotes', data.presupuestos, function (o) { return o.id; });
+    put('suppliers', data.proveedores, function (o) { return o.id; });
+    put('prices', data.precios, function (o) { return o.id; });
     if (!n) { msg.textContent = 'La copia no contiene datos.'; return; }
     msg.textContent = 'Importando ' + n + ' registros…';
     try { await Promise.all(jobs); msg.textContent = 'Listo: ' + n + ' registros importados.'; }
@@ -1514,7 +1516,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     if (String(l.cost).trim()) return; var key = l.product.trim().toLowerCase(); if (!key) return; var d = data();
     var st = d.stock.filter(function (x) { return normKey(x.product) === key; })[0]; var pv = sortSales(d.sales).filter(function (x) { return x.product.trim().toLowerCase() === key; })[0];
     var cst = st && st.cost ? st.cost : pv ? pv.cost : 0;
-    if (cst) { l.cost = toField(cst); renderQLines(); renderQuote(); }
+    if (cst) { l.cost = toField(cst); var ci = $('#ql-c-' + i); if (ci) ci.value = l.cost; renderQuote(); }
   });
   ['q-cur', 'q-rate', 'q-ship-c', 'q-ship-p', 'q-extra'].forEach(function (id) { $('#' + id).addEventListener('input', renderQuote); $('#' + id).addEventListener('change', renderQuote); });
 
@@ -2220,7 +2222,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792597782'; var newBuild = '';
+  var BUILD_ID = '1792598231'; var newBuild = '';
   function checkUpdate() {
     try {
       fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
