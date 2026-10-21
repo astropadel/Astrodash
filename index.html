@@ -373,7 +373,7 @@ details.tool[open] > summary::after { content: "\2212"; }
         <div class="field"><label for="f-method">Método de pago</label><input type="text" id="f-method" list="dl-methods" placeholder="PayPal, Zelle…" autocomplete="off"><datalist id="dl-methods"><option value="PayPal"></option><option value="Zelle"></option><option value="Transferencia"></option><option value="Binance Pay"></option><option value="Stripe"></option><option value="Efectivo"></option></datalist></div>
         <div class="field"><label for="f-usd">Cobrado (US$)</label><input type="text" id="f-usd" inputmode="decimal" placeholder="289" autocomplete="off" required></div>
         <div class="field"><label for="f-cost">Coste de compra (€)</label><input type="text" id="f-cost" inputmode="decimal" placeholder="168" autocomplete="off" required></div>
-        <div class="field" style="grid-column:1/-1"><div id="extra-items"></div><button class="btn btn-ghost btn-sm" type="button" data-act="x-add" id="x-add">+ Añadir otra pala al pedido</button><span class="hint">Cada pala lleva su precio y su coste. El envío, el cambio y los datos del cliente son comunes a todo el pedido.</span></div>
+        <div class="field" style="grid-column:1/-1"><div id="extra-items"></div><button class="btn btn-ghost btn-sm" type="button" data-act="x-add" id="x-add">+ Añadir otro artículo</button><span class="hint">Cada artículo lleva su precio y su coste. El envío, el cambio y los datos del cliente son comunes a todo el pedido.</span></div>
         <div class="field"><label for="f-ship">Gastos de envío (€)</label><input type="text" id="f-ship" inputmode="decimal" placeholder="14" autocomplete="off"></div>
         <div class="field"><label for="f-rate">Tipo de cambio ese día (US$ por 1 €)</label><div class="inline-row"><input type="text" id="f-rate" inputmode="decimal" placeholder="1,0850" autocomplete="off" required><button class="btn btn-ghost btn-sm" type="button" data-act="update-rate" id="rate-btn">Actualizar</button></div><span class="hint" id="rate-msg" role="status"></span><span class="hint">El de la fecha del cobro. <a href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-usd.en.html" target="_blank" rel="noopener">Consultar cambio del BCE</a></span></div>
       </div>
@@ -1054,7 +1054,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       if (s.cedula) det.push('C.I. ' + s.cedula);
       if (s.supplier && !multi) det.push('prov. ' + s.supplier);
       if (s.barcode) det.push('cód. ' + s.barcode);
-      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(multi ? 'Pedido de ' + o.items.length + ' palas' : (s.product || '(sin nombre)')) + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + itemLines + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(usdT)) + '</span></div><div class="sale-actions">' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
+      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(multi ? 'Pedido de ' + o.items.length + ' artículos' : (s.product || '(sin nombre)')) + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + itemLines + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(usdT)) + '</span></div><div class="sale-actions">' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
     }).join('');
     var more = $('#sales-more'); more.hidden = state.showAll || list.length <= 40;
     if (!more.hidden) $('button', more).textContent = 'Mostrar las ' + list.length + ' ventas';
@@ -1132,7 +1132,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     o = o || {}; var n = o.n !== undefined ? o.n : XN; if (n >= XN) XN = n + 1;
     var div = document.createElement('div'); div.className = 'xrow'; div.dataset.n = String(n); if (o.id) div.dataset.docid = o.id;
     var fld = function (key, label, attrs) { return '<div class="field"><label for="x' + n + '-' + key + '">' + label + '</label><input type="text" id="x' + n + '-' + key + '" autocomplete="off" ' + attrs + '></div>'; };
-    div.innerHTML = '<div class="xhead"><strong>Pala adicional</strong><button class="link danger" type="button" data-act="x-del">Quitar</button></div><div class="fgrid">' +
+    div.innerHTML = '<div class="xhead"><strong>Artículo adicional</strong><button class="link danger" type="button" data-act="x-del">Quitar</button></div><div class="fgrid">' +
       fld('brand', 'Marca', 'list="dl-brands" placeholder="Bullpadel"') + fld('model', 'Modelo', 'list="dl-models" placeholder="Vertex 04"') + fld('year', 'Año', 'inputmode="numeric" maxlength="4" placeholder="2025"') + fld('supplier', 'Proveedor', 'list="dl-suppliers"') +
       fld('usd', 'Cobrado (US$)', 'inputmode="decimal" placeholder="289"') + fld('cost', 'Coste de compra (€)', 'inputmode="decimal" placeholder="168"') + '</div>';
     $('#extra-items').appendChild(div);
@@ -1154,7 +1154,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     xs0.forEach(function (x) { if (x.usd > 0) usd += x.usd; if (!isNaN(x.cost)) cost += x.cost; });
     var rev = CUR === 'USD' ? usd : usd / rate; var profit = CUR === 'USD' ? usd - (cost + (isNaN(ship) ? 0 : ship)) * rate : rev - cost - (isNaN(ship) ? 0 : ship);
     p.className = 'preview' + (profit < 0 ? ' loss' : '');
-    p.innerHTML = (xs0.length ? 'Pedido de ' + (xs0.length + 1) + ' palas. ' : '') + (CUR === 'USD' ? 'Lo cobrado: <strong>' : 'Lo cobrado equivale a <strong>') + esc(fM.format(rev)) + '</strong> · Beneficio de esta venta: <strong class="' + (profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(profit)) + '</strong>' + (rev ? ' (' + esc(fPct.format(profit / rev)) + ' de margen)' : '');
+    p.innerHTML = (xs0.length ? 'Pedido de ' + (xs0.length + 1) + ' artículos. ' : '') + (CUR === 'USD' ? 'Lo cobrado: <strong>' : 'Lo cobrado equivale a <strong>') + esc(fM.format(rev)) + '</strong> · Beneficio de esta venta: <strong class="' + (profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(profit)) + '</strong>' + (rev ? ' (' + esc(fPct.format(profit / rev)) + ' de margen)' : '');
   }
   function readSale() {
     return {
@@ -1176,7 +1176,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     if (!(v.rate > 0)) { err.textContent = 'Indica el tipo de cambio de ese día, por ejemplo 1,0850.'; return; }
     var xs = readExtras();
     for (var xi = 0; xi < xs.length; xi++) {
-      var xx = xs[xi]; var tag = 'Pala adicional ' + (xi + 1) + ': ';
+      var xx = xs[xi]; var tag = 'Artículo adicional ' + (xi + 1) + ': ';
       if (!xx.brand || !xx.model) { err.textContent = tag + 'indica la marca y el modelo.'; return; }
       if (xx.year && !/^\d{4}$/.test(xx.year)) { err.textContent = tag + 'el año tiene 4 cifras, por ejemplo 2025.'; return; }
       if (!(xx.usd > 0)) { err.textContent = tag + 'indica cuántos dólares has cobrado.'; return; }
@@ -1200,7 +1200,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       for (var q = 0; q < oldX.length; q++) { if (!keepIds[oldX[q]]) await col.doc(oldX[q]).delete(); }
       if (state.invoiceOrig && (!state.invoice || state.invoice.id !== state.invoiceOrig.id)) delAsset(state.invoiceOrig.id);
       state.invoiceUnsaved = false; state.invoiceOrig = state.invoice;
-      toast(state.editing ? 'Cambios guardados' : xs.length ? 'Pedido guardado (' + (xs.length + 1) + ' palas)' : 'Venta guardada');
+      toast(state.editing ? 'Cambios guardados' : xs.length ? 'Pedido guardado (' + (xs.length + 1) + ' artículos)' : 'Venta guardada');
       resetForm(true);
       $('#f-client').focus();
     } catch (ex) {
@@ -2323,7 +2323,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792606699'; var newBuild = '';
+  var BUILD_ID = '1792607450'; var newBuild = '';
   function checkUpdate() {
     try {
       fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
