@@ -373,7 +373,7 @@ details.tool[open] > summary::after { content: "\2212"; }
         <div class="field"><label for="q-client">Comercio</label><input type="text" id="q-client" placeholder="Nombre del comercio" autocomplete="off"></div>
         <div class="field"><label for="q-date">Fecha</label><input type="date" id="q-date"></div>
         <div class="field"><label for="q-cur">Cobrar en</label><select id="q-cur"><option value="USD">Dólares (US$)</option><option value="EUR">Euros (€)</option></select></div>
-        <div class="field" id="q-rate-wrap"><label for="q-rate">Tipo de cambio (US$ por 1 €)</label><input type="text" id="q-rate" inputmode="decimal" placeholder="1,0850" autocomplete="off"></div>
+        <div class="field" id="q-rate-wrap"><label for="q-rate">Tipo de cambio (US$ por 1 €)</label><div class="inline-row"><input type="text" id="q-rate" inputmode="decimal" placeholder="1,0850" autocomplete="off"><button class="btn btn-ghost btn-sm" type="button" data-act="update-qrate" id="q-rate-btn">Actualizar</button></div><p class="hint" id="q-rate-msg" role="status"></p></div>
       </div>
       <h3 style="margin-top:18px">Palas del pedido</h3>
       <div id="q-lines" class="qlines"></div>
@@ -977,22 +977,40 @@ details.tool[open] > summary::after { content: "\2212"; }
     $('#f-cancel').hidden = true; $('#form-error').textContent = '';
     updatePreview(); renderInvoiceStatus();
   }
+  /* Tipo de cambio EUR→USD: prueba varias fuentes, por orden, hasta que una responda */
+  function getJSON(url, ms) {
+    var ctl = new AbortController(); var to = setTimeout(function () { ctl.abort(); }, ms || 8000);
+    return fetch(url, { signal: ctl.signal, cache: 'no-store' }).then(function (res) { clearTimeout(to); if (!res.ok) throw new Error('http ' + res.status); return res.json(); }, function (e) { clearTimeout(to); throw e; });
+  }
+  async function fetchRate(day) {
+    var today = todayISO(); if (day > today) day = today; var isToday = day === today; var errs = [];
+    var sources = [
+      { name: 'BCE', url: 'https://api.frankfurter.dev/v1/' + day + '?base=EUR&symbols=USD', pick: function (j) { return { r: j && j.rates && +j.rates.USD, d: j && j.date }; } },
+      { name: 'BCE', url: 'https://api.frankfurter.app/' + day + '?from=EUR&to=USD', pick: function (j) { return { r: j && j.rates && +j.rates.USD, d: j && j.date }; } },
+      { name: 'tipo de referencia', url: 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@' + day + '/v1/currencies/eur.json', pick: function (j) { return { r: j && j.eur && +j.eur.usd, d: j && j.date }; } },
+      { name: 'tipo de referencia', url: 'https://latest.currency-api.pages.dev/v1/currencies/eur.json', today: true, pick: function (j) { return { r: j && j.eur && +j.eur.usd, d: j && j.date }; } },
+      { name: 'tipo de referencia', url: 'https://open.er-api.com/v6/latest/EUR', today: true, pick: function (j) { return { r: j && j.rates && +j.rates.USD, d: day }; } }
+    ];
+    for (var i = 0; i < sources.length; i++) {
+      var sc = sources[i]; if (sc.today && !isToday) continue;
+      try { var j = await getJSON(sc.url); var o = sc.pick(j); if (o.r > 0) return { rate: o.r, date: o.d || day, name: sc.name, asked: day }; errs.push('sin dato'); }
+      catch (e) { errs.push(e && e.name === 'AbortError' ? 'tiempo agotado' : (e && e.message) || 'error'); }
+    }
+    var uniq = errs.filter(function (x, k) { return errs.indexOf(x) === k; }); var err = new Error(uniq.join(', ')); err.list = errs; throw err;
+  }
+  function rateText(o) { return 'Cambio (' + o.name + ') del ' + dateShort(o.date) + (o.date !== o.asked ? ' (último día publicado antes de la fecha)' : '') + ': ' + String(o.rate).replace('.', ',') + ' US$ por 1 €.'; }
   async function updateRate() {
     var msg = $('#rate-msg'); var btn = $('#rate-btn'); var day = $('#f-date').value || todayISO();
-    if (day > todayISO()) day = todayISO();
-    btn.disabled = true; msg.textContent = 'Consultando el cambio del BCE…';
-    try {
-      var ctl = new AbortController(); var to = setTimeout(function () { ctl.abort(); }, 8000);
-      var res = await fetch('https://api.frankfurter.dev/v1/' + day + '?base=EUR&symbols=USD', { signal: ctl.signal });
-      clearTimeout(to);
-      if (!res.ok) throw new Error('http ' + res.status);
-      var j = await res.json(); var r = j && j.rates && +j.rates.USD;
-      if (!(r > 0)) throw new Error('sin dato');
-      $('#f-rate').value = toField(r); updatePreview();
-      msg.textContent = 'Cambio del BCE del ' + dateShort(j.date || day) + (j.date && j.date !== day ? ' (último día publicado antes de la fecha)' : '') + ': ' + String(r).replace('.', ',') + ' US$ por 1 €.';
-    } catch (ex) {
-      msg.textContent = 'No se pudo consultar el cambio desde aquí. Escríbelo a mano; el enlace del BCE te ayuda.';
-    }
+    btn.disabled = true; msg.textContent = 'Consultando el cambio…';
+    try { var o = await fetchRate(day); $('#f-rate').value = toField(o.rate); updatePreview(); msg.textContent = rateText(o); }
+    catch (ex) { msg.textContent = 'No se pudo consultar el cambio (' + (ex.message || 'sin conexión') + '). Escríbelo a mano; el enlace del BCE te ayuda.'; }
+    btn.disabled = false;
+  }
+  async function updateQRate() {
+    var msg = $('#q-rate-msg'); var btn = $('#q-rate-btn'); var day = $('#q-date').value || todayISO();
+    btn.disabled = true; msg.textContent = 'Consultando el cambio…';
+    try { var o = await fetchRate(day); $('#q-rate').value = toField(o.rate); renderQuote(); msg.textContent = rateText(o); }
+    catch (ex) { msg.textContent = 'No se pudo consultar el cambio (' + (ex.message || 'sin conexión') + '). Escríbelo a mano.'; }
     btn.disabled = false;
   }
   function updatePreview() {
@@ -1497,6 +1515,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     else if (act === 'rm-invoice') { if (state.invoiceUnsaved && state.invoice) delAsset(state.invoice.id); state.invoice = null; state.invoiceUnsaved = false; renderInvoiceStatus(); }
     else if (act === 'copy-addr') { var cs = data().sales.filter(function (x) { return x.id === el.dataset.id; })[0]; if (cs && addrOf(cs)) copyText(addrOf(cs), 'Dirección copiada'); }
     else if (act === 'update-rate') updateRate();
+    else if (act === 'update-qrate') updateQRate();
     else if (act === 'cancel-stock') resetStockForm();
     else if (act === 'filter-brand') { state.brandFilter = el.dataset.id; renderStock(); var sb = $('#stock-table'); if (sb) sb.scrollIntoView({ block: 'start' }); }
     else if (act === 'export-sales') exportFile('sales');
