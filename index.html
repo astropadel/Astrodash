@@ -178,7 +178,7 @@ a.link { text-decoration: none; display: inline-flex; align-items: center; }
 .sale-money { text-align: right; display: grid; gap: 2px; }
 .sale-money .profit { font-weight: 700; }
 .sale-money .usd { font-size: 13.5px; color: var(--fg-3); }
-.sale-actions { grid-column: 2 / 4; display: flex; justify-content: flex-end; gap: 2px; }
+.sale-actions { grid-column: 2 / 4; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
 
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--fg); color: var(--bg); padding: 11px 16px; border-radius: 10px; font-weight: 600; font-size: 14px; z-index: 40; max-width: calc(100% - 32px); box-shadow: 0 8px 24px rgba(0, 0, 0, .25); }
 
@@ -272,6 +272,9 @@ details.tool[open] > summary::after { content: "\2212"; }
   .tab { padding-inline: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+.xrow { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; background: var(--surface); }
+.xhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.sale-main .oi { color: var(--fg-2); }
 .sfilter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -370,6 +373,7 @@ details.tool[open] > summary::after { content: "\2212"; }
         <div class="field"><label for="f-method">Método de pago</label><input type="text" id="f-method" list="dl-methods" placeholder="PayPal, Zelle…" autocomplete="off"><datalist id="dl-methods"><option value="PayPal"></option><option value="Zelle"></option><option value="Transferencia"></option><option value="Binance Pay"></option><option value="Stripe"></option><option value="Efectivo"></option></datalist></div>
         <div class="field"><label for="f-usd">Cobrado (US$)</label><input type="text" id="f-usd" inputmode="decimal" placeholder="289" autocomplete="off" required></div>
         <div class="field"><label for="f-cost">Coste de compra (€)</label><input type="text" id="f-cost" inputmode="decimal" placeholder="168" autocomplete="off" required></div>
+        <div class="field" style="grid-column:1/-1"><div id="extra-items"></div><button class="btn btn-ghost btn-sm" type="button" data-act="x-add" id="x-add">+ Añadir otra pala al pedido</button><span class="hint">Cada pala lleva su precio y su coste. El envío, el cambio y los datos del cliente son comunes a todo el pedido.</span></div>
         <div class="field"><label for="f-ship">Gastos de envío (€)</label><input type="text" id="f-ship" inputmode="decimal" placeholder="14" autocomplete="off"></div>
         <div class="field"><label for="f-rate">Tipo de cambio ese día (US$ por 1 €)</label><div class="inline-row"><input type="text" id="f-rate" inputmode="decimal" placeholder="1,0850" autocomplete="off" required><button class="btn btn-ghost btn-sm" type="button" data-act="update-rate" id="rate-btn">Actualizar</button></div><span class="hint" id="rate-msg" role="status"></span><span class="hint">El de la fecha del cobro. <a href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-usd.en.html" target="_blank" rel="noopener">Consultar cambio del BCE</a></span></div>
       </div>
@@ -788,7 +792,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   function isLoading() { return state.dbStatus === 'loading' || (state.dbStatus === 'ok' && !(state.loaded.sales && state.loaded.ads && state.loaded.stock && state.loaded.quotes)); }
 
   function normSale(d, id) {
-    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
+    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', orderId: String(d.orderId || ''), pos: +d.pos || 0, brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
   }
 
   function makeDemo() {
@@ -903,7 +907,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var plabel = all ? 'Todo el tiempo' : monthLong(state.period);
 
     var h = '';
-    (function () { var c = stCounts(d.sales); if (c.pendiente + c.enviado) h += '<section class="card pend-card" aria-label="Pedidos en curso"><div><strong>Pedidos en curso</strong><div class="muted">' + c.pendiente + (c.pendiente === 1 ? ' pendiente de envío' : ' pendientes de envío') + ' · ' + c.enviado + (c.enviado === 1 ? ' enviado' : ' enviados') + ' sin entregar</div></div><button class="btn btn-ghost btn-sm" type="button" data-act="go-pending">Ver pendientes</button></section>'; })();
+    (function () { var c = stCounts(ordersOf(d.sales)); if (c.pendiente + c.enviado) h += '<section class="card pend-card" aria-label="Pedidos en curso"><div><strong>Pedidos en curso</strong><div class="muted">' + c.pendiente + (c.pendiente === 1 ? ' pendiente de envío' : ' pendientes de envío') + ' · ' + c.enviado + (c.enviado === 1 ? ' enviado' : ' enviados') + ' sin entregar</div></div><button class="btn btn-ghost btn-sm" type="button" data-act="go-pending">Ver pendientes</button></section>'; })();
     h += '<section class="card hero" aria-label="Beneficio">';
     h += '<div><p class="eyebrow">Beneficio neto · ' + esc(plabel) + '</p>';
     h += '<p class="hero-num' + (S.net < 0 ? ' neg' : '') + '">' + esc(fM.format(S.net)) + '</p>';
@@ -1017,9 +1021,20 @@ details.tool[open] > summary::after { content: "\2212"; }
   var ST_LABEL = { pendiente: 'Pendiente de envío', enviado: 'Enviado', entregado: 'Entregado' };
   var ST_CHIP = { pendiente: 'chip-warn', enviado: 'chip-info', entregado: 'chip-good' };
   var ST_NEXT = { pendiente: ['enviado', 'Marcar enviado'], enviado: ['entregado', 'Marcar entregado'] };
+  function ordersOf(sales) {
+    var map = {}, list = [];
+    sales.forEach(function (x) { var k = x.orderId || x.id; if (!map[k]) { map[k] = { key: k, items: [] }; list.push(map[k]); } map[k].items.push(x); });
+    list.forEach(function (o) { o.items.sort(function (a, b) { return a.pos - b.pos || (a.id < b.id ? -1 : 1); }); o.head = o.items[0]; o.status = o.head.status; });
+    return list;
+  }
+  function sortOrders(list) { return list.slice().sort(function (a, b) { var x = a.head, y = b.head; return x.date < y.date ? 1 : x.date > y.date ? -1 : (x.id < y.id ? 1 : -1); }); }
+  function orderById(id) {
+    var all = data().sales; var x = all.filter(function (q) { return q.id === id; })[0]; if (!x) return null;
+    var k = x.orderId || x.id; return ordersOf(all.filter(function (q) { return (q.orderId || q.id) === k; }))[0];
+  }
   function stCounts(list) { var c = { pendiente: 0, enviado: 0, entregado: 0 }; list.forEach(function (x) { c[x.status] = (c[x.status] || 0) + 1; }); return c; }
   function renderVentas() {
-    var d = data(); var all = sortSales(d.sales); var cnt = stCounts(all);
+    var d = data(); var all = sortOrders(ordersOf(d.sales)); var cnt = stCounts(all);
     var fl = $('#status-filter');
     fl.hidden = !all.length;
     fl.innerHTML = [['', 'Todos (' + all.length + ')'], ['pendiente', 'Pendientes (' + cnt.pendiente + ')'], ['enviado', 'Enviados (' + cnt.enviado + ')'], ['entregado', 'Entregados (' + cnt.entregado + ')']].map(function (o) { return '<button class="sf-btn" type="button" data-act="status-filter" data-v="' + o[0] + '" aria-pressed="' + (state.statusFilter === o[0] ? 'true' : 'false') + '">' + esc(o[1]) + '</button>'; }).join('');
@@ -1029,14 +1044,17 @@ details.tool[open] > summary::after { content: "\2212"; }
     if (isLoading()) { ul.innerHTML = '<li class="muted pad">Cargando…</li>'; $('#sales-more').hidden = true; return; }
     if (!list.length) { ul.innerHTML = '<li class="muted pad">' + (all.length ? 'No hay pedidos con ese estado.' : 'Aún no has registrado ninguna venta. Rellena el formulario de arriba para la primera.') + '</li>'; $('#sales-more').hidden = true; return; }
     var shown = state.showAll ? list : list.slice(0, 40);
-    ul.innerHTML = shown.map(function (s) {
-      var c = calc(s);
+    ul.innerHTML = shown.map(function (o) {
+      var s = o.head, multi = o.items.length > 1; var usdT = 0, costT = 0, profT = 0;
+      o.items.forEach(function (x) { usdT += x.usd; costT += x.cost; profT += calc(x).profit; });
+      var c = { profit: profT };
+      var itemLines = multi ? o.items.map(function (x) { return '<span class="oi">• ' + esc((x.product || '(sin nombre)') + ' · ' + fUSD.format(x.usd) + (x.supplier ? ' · prov. ' + x.supplier : '')) + '</span>'; }).join('') : '';
       var meta = [s.fullname, s.client, s.method].filter(Boolean).join(' · ');
-      var det = ['cambio ' + fRate.format(s.rate), 'coste ' + fEUR.format(s.cost), 'envío ' + fEUR.format(s.ship)];
+      var det = ['cambio ' + fRate.format(s.rate), 'coste ' + fEUR.format(costT), 'envío ' + fEUR.format(s.ship)];
       if (s.cedula) det.push('C.I. ' + s.cedula);
-      if (s.supplier) det.push('prov. ' + s.supplier);
+      if (s.supplier && !multi) det.push('prov. ' + s.supplier);
       if (s.barcode) det.push('cód. ' + s.barcode);
-      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(s.product || '(sin nombre)') + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(s.usd)) + '</span></div><div class="sale-actions">' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
+      return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(multi ? 'Pedido de ' + o.items.length + ' palas' : (s.product || '(sin nombre)')) + '</strong><span><span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></span>' + itemLines + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(usdT)) + '</span></div><div class="sale-actions">' + (ST_NEXT[s.status] ? '<button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '">' + ST_NEXT[s.status][1] + '</button>' : '') + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
     }).join('');
     var more = $('#sales-more'); more.hidden = state.showAll || list.length <= 40;
     if (!more.hidden) $('button', more).textContent = 'Mostrar las ' + list.length + ' ventas';
@@ -1047,7 +1065,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   function lastSale() { var d = data(); var l = sortSales(d.sales); return l[0] || null; }
   async function advStatus(id, to) {
     if (!state.db || state.demo) { toast('No se puede cambiar el estado ahora.'); return; }
-    try { await state.db.collection('sales').doc(id).update({ status: to }); toast(to === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido marcado como entregado'); }
+    try { var ord = orderById(id); var ids = ord ? ord.items.map(function (x) { return x.id; }) : [id]; for (var i = 0; i < ids.length; i++) await state.db.collection('sales').doc(ids[i]).update({ status: to }); toast(to === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido marcado como entregado'); }
     catch (ex) { toast('No se pudo cambiar el estado. Inténtalo de nuevo.'); }
   }
   function seedSaleDefaults() {
@@ -1067,7 +1085,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var ls = state.demo ? null : lastSale();
     $('#f-method').value = method || (ls ? ls.method : '');
     $('#f-rate').value = rate || (ls && ls.rate ? toField(ls.rate) : '');
-    state.editing = null;
+    state.editing = null; state.editExtraIds = []; clearExtras();
     $('#form-venta-title').textContent = 'Registrar venta';
     $('#f-submit').textContent = 'Guardar venta';
     $('#f-cancel').hidden = true; $('#form-error').textContent = '';
@@ -1109,13 +1127,34 @@ details.tool[open] > summary::after { content: "\2212"; }
     catch (ex) { msg.textContent = 'No se pudo consultar el cambio (' + (ex.message || 'sin conexión') + '). Escríbelo a mano.'; }
     btn.disabled = false;
   }
+  var XN = 0;
+  function addExtra(o) {
+    o = o || {}; var n = o.n !== undefined ? o.n : XN; if (n >= XN) XN = n + 1;
+    var div = document.createElement('div'); div.className = 'xrow'; div.dataset.n = String(n); if (o.id) div.dataset.docid = o.id;
+    var fld = function (key, label, attrs) { return '<div class="field"><label for="x' + n + '-' + key + '">' + label + '</label><input type="text" id="x' + n + '-' + key + '" autocomplete="off" ' + attrs + '></div>'; };
+    div.innerHTML = '<div class="xhead"><strong>Pala adicional</strong><button class="link danger" type="button" data-act="x-del">Quitar</button></div><div class="fgrid">' +
+      fld('brand', 'Marca', 'list="dl-brands" placeholder="Bullpadel"') + fld('model', 'Modelo', 'list="dl-models" placeholder="Vertex 04"') + fld('year', 'Año', 'inputmode="numeric" maxlength="4" placeholder="2025"') + fld('supplier', 'Proveedor', 'list="dl-suppliers"') +
+      fld('usd', 'Cobrado (US$)', 'inputmode="decimal" placeholder="289"') + fld('cost', 'Coste de compra (€)', 'inputmode="decimal" placeholder="168"') + '</div>';
+    $('#extra-items').appendChild(div);
+    if (o.brand !== undefined) { $('#x' + n + '-brand').value = o.brand; $('#x' + n + '-model').value = o.model || ''; $('#x' + n + '-year').value = o.year || ''; $('#x' + n + '-supplier').value = o.supplier || ''; $('#x' + n + '-usd').value = o.usd || ''; $('#x' + n + '-cost').value = o.cost || ''; }
+    return div;
+  }
+  function clearExtras() { $('#extra-items').innerHTML = ''; }
+  function readExtras() {
+    return Array.prototype.slice.call(document.querySelectorAll('#extra-items .xrow')).map(function (r) {
+      var n = r.dataset.n; var g = function (k) { return $('#x' + n + '-' + k).value.trim(); };
+      return { docid: r.dataset.docid || '', brand: g('brand'), model: g('model'), year: g('year'), supplier: g('supplier'), product: compose(g('brand'), g('model'), g('year')), usd: num(g('usd')), cost: num(g('cost')) };
+    });
+  }
   function updatePreview() {
     var usd = num($('#f-usd').value), cost = num($('#f-cost').value), ship = num($('#f-ship').value), rate = num($('#f-rate').value);
+    var xs0 = readExtras();
     var p = $('#preview');
     if (!(usd > 0) || !(rate > 0) || isNaN(cost)) { p.className = 'preview'; p.textContent = 'Rellena cobrado, coste y tipo de cambio para ver el beneficio de esta venta.'; return; }
+    xs0.forEach(function (x) { if (x.usd > 0) usd += x.usd; if (!isNaN(x.cost)) cost += x.cost; });
     var rev = CUR === 'USD' ? usd : usd / rate; var profit = CUR === 'USD' ? usd - (cost + (isNaN(ship) ? 0 : ship)) * rate : rev - cost - (isNaN(ship) ? 0 : ship);
     p.className = 'preview' + (profit < 0 ? ' loss' : '');
-    p.innerHTML = (CUR === 'USD' ? 'Lo cobrado: <strong>' : 'Lo cobrado equivale a <strong>') + esc(fM.format(rev)) + '</strong> · Beneficio de esta venta: <strong class="' + (profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(profit)) + '</strong>' + (rev ? ' (' + esc(fPct.format(profit / rev)) + ' de margen)' : '');
+    p.innerHTML = (xs0.length ? 'Pedido de ' + (xs0.length + 1) + ' palas. ' : '') + (CUR === 'USD' ? 'Lo cobrado: <strong>' : 'Lo cobrado equivale a <strong>') + esc(fM.format(rev)) + '</strong> · Beneficio de esta venta: <strong class="' + (profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(profit)) + '</strong>' + (rev ? ' (' + esc(fPct.format(profit / rev)) + ' de margen)' : '');
   }
   function readSale() {
     return {
@@ -1135,16 +1174,33 @@ details.tool[open] > summary::after { content: "\2212"; }
     if (!(v.usd > 0)) { err.textContent = 'Indica cuántos dólares has cobrado.'; return; }
     if (isNaN(v.cost) || v.cost < 0) { err.textContent = 'Indica el coste de compra en euros (0 si no aplica).'; return; }
     if (!(v.rate > 0)) { err.textContent = 'Indica el tipo de cambio de ese día, por ejemplo 1,0850.'; return; }
+    var xs = readExtras();
+    for (var xi = 0; xi < xs.length; xi++) {
+      var xx = xs[xi]; var tag = 'Pala adicional ' + (xi + 1) + ': ';
+      if (!xx.brand || !xx.model) { err.textContent = tag + 'indica la marca y el modelo.'; return; }
+      if (xx.year && !/^\d{4}$/.test(xx.year)) { err.textContent = tag + 'el año tiene 4 cifras, por ejemplo 2025.'; return; }
+      if (!(xx.usd > 0)) { err.textContent = tag + 'indica cuántos dólares has cobrado.'; return; }
+      if (isNaN(xx.cost) || xx.cost < 0) { err.textContent = tag + 'indica el coste de compra en euros (0 si no aplica).'; return; }
+    }
     if (state.invoiceBusy) { err.textContent = 'Espera a que termine de subirse la factura.'; return; }
     var btn = $('#f-submit'); btn.disabled = true;
     try {
       var col = state.db.collection('sales');
       var ref = state.editing ? col.doc(state.editing) : col.doc();
       if (state.invoice) v.invoice = { id: state.invoice.id, name: state.invoice.name, type: state.invoice.type };
+      v.orderId = xs.length ? ref.id : ''; v.pos = 0;
       await ref.set(v);
+      var keepIds = {};
+      for (var k = 0; k < xs.length; k++) {
+        var xr = xs[k]; var xref = xr.docid ? col.doc(xr.docid) : col.doc(); keepIds[xref.id] = 1;
+        await xref.set({ date: v.date, client: v.client, fullname: v.fullname, cedula: v.cedula, status: v.status, street: v.street, city: v.city, phone: v.phone, method: v.method, rate: v.rate, barcode: '', ship: 0,
+          brand: xr.brand, model: xr.model, year: xr.year, supplier: xr.supplier, product: xr.product, usd: xr.usd, cost: xr.cost, orderId: ref.id, pos: k + 1 });
+      }
+      var oldX = state.editExtraIds || [];
+      for (var q = 0; q < oldX.length; q++) { if (!keepIds[oldX[q]]) await col.doc(oldX[q]).delete(); }
       if (state.invoiceOrig && (!state.invoice || state.invoice.id !== state.invoiceOrig.id)) delAsset(state.invoiceOrig.id);
       state.invoiceUnsaved = false; state.invoiceOrig = state.invoice;
-      toast(state.editing ? 'Cambios guardados' : 'Venta guardada');
+      toast(state.editing ? 'Cambios guardados' : xs.length ? 'Pedido guardado (' + (xs.length + 1) + ' palas)' : 'Venta guardada');
       resetForm(true);
       $('#f-client').focus();
     } catch (ex) {
@@ -1153,18 +1209,23 @@ details.tool[open] > summary::after { content: "\2212"; }
     btn.disabled = false;
   }
   function editSale(id) {
-    var s = data().sales.filter(function (x) { return x.id === id; })[0]; if (!s) return;
+    var ord = orderById(id); if (!ord) return; var s = ord.head; id = s.id;
     setTab('ventas');
     $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; $('#f-status').value = s.status; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
     $('#f-usd').value = toField(s.usd); $('#f-cost').value = toField(s.cost); $('#f-ship').value = toField(s.ship); $('#f-rate').value = toField(s.rate);
+    clearExtras(); ord.items.slice(1).forEach(function (x) { var sx = splitProduct(x); addExtra({ id: x.id, brand: sx.brand, model: sx.model, year: sx.year, supplier: x.supplier, usd: toField(x.usd), cost: toField(x.cost) }); }); state.editExtraIds = ord.items.slice(1).map(function (x) { return x.id; });
     state.editing = id; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
     updatePreview(); $('#form-venta').scrollIntoView({ block: 'start' });
   }
   async function deleteDoc(coll, id, label) {
     if (state.demo) { toast('En el ejemplo no se puede borrar nada.'); return; }
     if (!state.db) return;
-    var inv = coll === 'sales' ? (state.sales.filter(function (x) { return x.id === id; })[0] || {}).invoice : null;
-    try { await state.db.collection(coll).doc(id).delete(); if (inv) delAsset(inv.id); toast(label); } catch (ex) { toast('No se pudo borrar. Inténtalo de nuevo.'); }
+    var ord = coll === 'sales' ? orderById(id) : null; var items = ord ? ord.items : [];
+    try {
+      if (coll === 'sales' && items.length) { for (var i = 0; i < items.length; i++) { await state.db.collection('sales').doc(items[i].id).delete(); if (items[i].invoice) delAsset(items[i].invoice.id); } }
+      else await state.db.collection(coll).doc(id).delete();
+      toast(label);
+    } catch (ex) { toast('No se pudo borrar. Inténtalo de nuevo.'); }
   }
 
   /* ---------- Publicidad ---------- */
@@ -1593,6 +1654,8 @@ details.tool[open] > summary::after { content: "\2212"; }
     else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
     else if (act === 'sign-out') { signOutNow(); }
     else if (act === 'app-update') { try { clearTimeout(draftTimer); draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild || Date.now()); }
+    else if (act === 'x-add') { addExtra({}); updatePreview(); var lastx = document.querySelector('#extra-items .xrow:last-child input'); if (lastx) lastx.focus(); }
+    else if (act === 'x-del') { var xrow = el.closest('.xrow'); if (xrow) { xrow.remove(); updatePreview(); draftSave(); } }
     else if (act === 'status-filter') { state.statusFilter = el.dataset.v || ''; state.showAll = false; renderVentas(); }
     else if (act === 'adv-status') { advStatus(el.dataset.id, el.dataset.to); }
     else if (act === 'go-pending') { state.statusFilter = 'pendiente'; setTab('ventas'); renderVentas(); }
@@ -1648,6 +1711,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   $('#form-venta').addEventListener('submit', saveSale);
   $('#form-ads').addEventListener('submit', saveAd);
   ['f-usd', 'f-cost', 'f-ship', 'f-rate'].forEach(function (id) { $('#' + id).addEventListener('input', updatePreview); });
+  $('#extra-items').addEventListener('input', updatePreview);
   function saleProductChanged() {
     if (state.editing) return;
     var prod = compose($('#f-brand').value, $('#f-model').value, $('#f-year').value); if (!prod) return;
@@ -1926,10 +1990,15 @@ details.tool[open] > summary::after { content: "\2212"; }
     var dest = [s.street, s.city].filter(Boolean).join('\n');
     if (dest) { section('Envío a'); lines(dest, '400 32px ' + BODY, INK, 44); }
     section('Compra');
-    var sp = splitProduct(s);
-    lines(s.product || '—', '700 56px ' + DISP, INK, 64);
-    var det = []; if (sp.brand) det.push('Marca: ' + sp.brand); if (sp.model) det.push('Modelo: ' + sp.model); if (sp.year) det.push('Año: ' + sp.year);
-    if (det.length) lines(det.join('   ·   '), '400 30px ' + BODY, GREY, 42);
+    var rItems = s.items && s.items.length > 1 ? s.items : [s];
+    rItems.forEach(function (it, k) {
+      var sp = splitProduct(it);
+      lines(it.product || '—', '700 56px ' + DISP, INK, 64);
+      var det = []; if (sp.brand) det.push('Marca: ' + sp.brand); if (sp.model) det.push('Modelo: ' + sp.model); if (sp.year) det.push('Año: ' + sp.year);
+      if (det.length) lines(det.join('   ·   '), '400 30px ' + BODY, GREY, 42);
+      if (rItems.length > 1) lines('Precio: ' + fUSD.format(it.usd), '600 30px ' + BODY, INK, 42);
+      if (k < rItems.length - 1) y += 26;
+    });
     if (s.method) lines('Método de pago: ' + s.method, '400 30px ' + BODY, GREY, 42);
     if (s.barcode) lines('Código de barras: ' + s.barcode, '400 30px ' + BODY, GREY, 42);
     y += 40;
@@ -1945,7 +2014,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     return out;
   }
   async function openReceipt(id) {
-    var s = data().sales.filter(function (x) { return x.id === id; })[0]; if (!s) return;
+    var ord = orderById(id); if (!ord) return; var s = Object.assign({}, ord.head, { items: ord.items, usd: ord.items.reduce(function (t, x) { return t + x.usd; }, 0), product: ord.items.map(function (x) { return x.product; }).join(' + ') });
     RC.sale = s; RC.file = 'comprobante-' + ((s.fullname || s.client || 'cliente').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'cliente') + '-' + s.date + '.png';
     $('#rc-title').textContent = 'Comprobante de compra'; $('#rc-hint').textContent = 'Se muestra tal como lo recibirá el cliente. Solo incluye sus datos, el producto y lo que pagó.';
     $('#rc-msg').textContent = ''; $('#rc-img').removeAttribute('src');
@@ -2240,7 +2309,9 @@ details.tool[open] > summary::after { content: "\2212"; }
     var d = DRAFT0; DRAFT0 = null;
     if (!d || !d.v) return;
     if (d.t && Date.now() - d.t > 7 * 86400000) { try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* sin almacenamiento */ } return; }
-    var n = 0;
+    var n = 0; var xset = {};
+    Object.keys(d.v).forEach(function (id) { var m = /^x(\d+)-/.exec(id); if (m) xset[m[1]] = 1; });
+    Object.keys(xset).sort(function (a, b) { return a - b; }).forEach(function (k) { if (!$('#x' + k + '-brand')) addExtra({ n: +k }); });
     Object.keys(d.v).forEach(function (id) {
       var el = document.getElementById(id); if (!el || DRAFT_SKIP[id] || !d.v[id] && el.type !== 'checkbox') return;
       if (el.type === 'checkbox') el.checked = d.v[id] === '1'; else el.value = d.v[id];
@@ -2252,7 +2323,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792598795'; var newBuild = '';
+  var BUILD_ID = '1792606699'; var newBuild = '';
   function checkUpdate() {
     try {
       fetch('version.json?ts=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
