@@ -113,7 +113,13 @@ textarea { padding: 10px 12px; line-height: 1.4; resize: vertical; font-family: 
 .sale-addr { white-space: pre-line; }
 input[type="file"] { font-size: 15px; max-width: 100%; }
 a.link { text-decoration: none; display: inline-flex; align-items: center; }
-.toolbar select { width: auto; min-width: 200px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+.seg { flex: none; }
+.seg button { min-height: 44px; min-width: 48px; padding: 0 12px; border: 0; background: transparent; color: var(--fg-2); font: inherit; font-weight: 700; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.toolbar select { width: auto; min-width: 140px; flex: 1 1 140px; max-width: 220px; }
+#toolbar-res { flex-wrap: nowrap; gap: 8px; }
+#toolbar-res label { flex: none; }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: center; }
 .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
 .hero-num { font: 700 clamp(52px, 11vw, 84px)/1 var(--font-display); margin: 8px 0 10px; letter-spacing: .01em; }
@@ -369,8 +375,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     <div class="toolbar" id="toolbar-res">
       <label for="periodo">Periodo</label>
       <select id="periodo"><option value="all">Todo el tiempo</option></select>
-      <label for="moneda">Ver en</label>
-      <select id="moneda"><option value="USD">Dólares (US$)</option><option value="EUR">Euros (€)</option></select>
+      <div class="seg" id="moneda" role="group" aria-label="Ver importes en"><button type="button" data-cur="USD" aria-pressed="true">US$</button><button type="button" data-cur="EUR" aria-pressed="false">€</button></div>
     </div>
     <div class="card fol" id="fol-tile" hidden></div>
     <div id="res-body" class="view"></div>
@@ -1812,10 +1817,12 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
   ['f-brand', 'f-model', 'f-year'].forEach(function (id) { $('#' + id).addEventListener('change', saleProductChanged); });
   $('#periodo').addEventListener('change', function () { state.period = this.value; renderResumen(); });
-  $('#moneda').value = CUR;
-  $('#moneda').addEventListener('change', function () {
-    CUR = this.value === 'EUR' ? 'EUR' : 'USD';
-    try { localStorage.setItem('astro.cur', CUR); } catch (e) { /* sin almacenamiento */ }
+  function syncCur() { Array.prototype.forEach.call(document.querySelectorAll('#moneda button'), function (b) { b.setAttribute('aria-pressed', b.dataset.cur === CUR ? 'true' : 'false'); }); }
+  syncCur();
+  $('#moneda').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-cur]'); if (!b || b.dataset.cur === CUR) return;
+    CUR = b.dataset.cur === 'EUR' ? 'EUR' : 'USD'; syncCur();
+    try { localStorage.setItem('astro.cur', CUR); } catch (err) { /* sin almacenamiento */ }
     renderAll(); updatePreview(); drawChart();
   });
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(drawChart, 120); });
@@ -2410,7 +2417,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792615229'; var newBuild = '';
+  var BUILD_ID = '1792615611'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
