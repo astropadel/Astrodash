@@ -347,6 +347,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       <div class="fgrid">
         <div class="field"><label for="f-date">Fecha de la venta</label><input type="date" id="f-date" required></div>
         <div class="field"><label for="f-fullname">Nombre y apellido</label><input type="text" id="f-fullname" placeholder="Nombre y apellido de la persona" autocomplete="off"></div>
+        <div class="field"><label for="f-cedula">Cédula</label><input type="text" id="f-cedula" placeholder="V-12345678" autocomplete="off" autocapitalize="characters"></div>
         <div class="field"><label for="f-client">Usuario de Instagram <span class="hint">(opcional)</span></label><input type="text" id="f-client" placeholder="@usuario" autocomplete="off"></div>
         <div class="field"><label for="f-brand">Marca</label><input type="text" id="f-brand" list="dl-brands" placeholder="Bullpadel" autocomplete="off" required><datalist id="dl-brands"></datalist></div>
         <div class="field"><label for="f-model">Modelo</label><input type="text" id="f-model" list="dl-models" placeholder="Vertex 04" autocomplete="off" required><datalist id="dl-models"></datalist></div>
@@ -770,7 +771,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   function isLoading() { return state.dbStatus === 'loading' || (state.dbStatus === 'ok' && !(state.loaded.sales && state.loaded.ads && state.loaded.stock && state.loaded.quotes)); }
 
   function normSale(d, id) {
-    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
+    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
   }
 
   function makeDemo() {
@@ -1006,6 +1007,7 @@ details.tool[open] > summary::after { content: "\2212"; }
       var c = calc(s);
       var meta = [s.fullname, s.client, s.method].filter(Boolean).join(' · ');
       var det = ['cambio ' + fRate.format(s.rate), 'coste ' + fEUR.format(s.cost), 'envío ' + fEUR.format(s.ship)];
+      if (s.cedula) det.push('C.I. ' + s.cedula);
       if (s.supplier) det.push('prov. ' + s.supplier);
       if (s.barcode) det.push('cód. ' + s.barcode);
       return '<li class="sale"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(s.product || '(sin nombre)') + '</strong>' + (meta ? '<span>' + esc(meta) + '</span>' : '') + '<span>' + esc(det.join(' · ')) + '</span>' + (addrOf(s) ? '<span class="sale-addr">' + esc(addrOf(s)) + '</span>' : '') + '</div><div class="sale-money"><span class="profit ' + (c.profit < 0 ? 'neg' : 'pos') + '">' + esc(signedM(c.profit)) + '</span><span class="usd">' + esc(fUSD.format(s.usd)) + '</span></div><div class="sale-actions">' + (addrOf(s) ? '<button class="link" type="button" data-act="copy-addr" data-id="' + esc(s.id) + '">Copiar dirección</button>' : '') + '<button class="link" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button>' + (s.invoice ? '<a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Factura</a>' : '') + '<button class="link" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '">Editar</button><button class="link danger" type="button" data-act="del-sale" data-id="' + esc(s.id) + '">Borrar</button></div></li>';
@@ -1086,7 +1088,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   }
   function readSale() {
     return {
-      date: $('#f-date').value, client: $('#f-client').value.trim(), fullname: $('#f-fullname').value.trim(), brand: $('#f-brand').value.trim(), model: $('#f-model').value.trim(), year: $('#f-year').value.trim(), supplier: $('#f-supplier').value.trim(), street: $('#f-street').value.trim(), city: $('#f-city').value.trim(), phone: $('#f-phone').value.trim(), product: compose($('#f-brand').value, $('#f-model').value, $('#f-year').value), barcode: $('#f-barcode').value.trim(), method: $('#f-method').value.trim(),
+      date: $('#f-date').value, client: $('#f-client').value.trim(), fullname: $('#f-fullname').value.trim(), cedula: $('#f-cedula').value.trim(), brand: $('#f-brand').value.trim(), model: $('#f-model').value.trim(), year: $('#f-year').value.trim(), supplier: $('#f-supplier').value.trim(), street: $('#f-street').value.trim(), city: $('#f-city').value.trim(), phone: $('#f-phone').value.trim(), product: compose($('#f-brand').value, $('#f-model').value, $('#f-year').value), barcode: $('#f-barcode').value.trim(), method: $('#f-method').value.trim(),
       usd: num($('#f-usd').value), cost: num($('#f-cost').value), ship: isNaN(num($('#f-ship').value)) ? 0 : num($('#f-ship').value), rate: num($('#f-rate').value)
     };
   }
@@ -1122,7 +1124,7 @@ details.tool[open] > summary::after { content: "\2212"; }
   function editSale(id) {
     var s = data().sales.filter(function (x) { return x.id === id; })[0]; if (!s) return;
     setTab('ventas');
-    $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
+    $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
     $('#f-usd').value = toField(s.usd); $('#f-cost').value = toField(s.cost); $('#f-ship').value = toField(s.ship); $('#f-rate').value = toField(s.rate);
     state.editing = id; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
     updatePreview(); $('#form-venta').scrollIntoView({ block: 'start' });
@@ -1306,7 +1308,7 @@ details.tool[open] > summary::after { content: "\2212"; }
     var stamp = todayISO(); var name, body;
     if (kind === 'sales') {
       name = 'astrodash-ventas-' + stamp + '.csv';
-      body = toCSV(['Fecha', 'Nombre y apellido', 'Usuario de Instagram', 'Marca', 'Modelo', 'Año', 'Proveedor', 'Calle', 'Ciudad', 'Teléfono', 'Factura de envío', 'Producto', 'Código de barras', 'Método de pago', 'Cobrado (USD)', 'Coste (EUR)', 'Envío (EUR)', 'Cambio USD/EUR', 'Ingreso (EUR)', 'Beneficio (EUR)', 'Beneficio (USD)'], sortSales(state.sales).map(function (x) { var sp = splitProduct(x); var eur = x.rate > 0 ? x.usd / x.rate : 0; return [x.date, x.fullname, x.client, sp.brand, sp.model, sp.year, x.supplier, x.street, x.city, x.phone, x.invoice ? 'Sí' : 'No', x.product, x.barcode, x.method, csvNum(x.usd), csvNum(x.cost), csvNum(x.ship), csvNum(x.rate), csvNum(eur.toFixed(2)), csvNum((eur - x.cost - x.ship).toFixed(2)), csvNum((x.usd - (x.cost + x.ship) * x.rate).toFixed(2))]; }));
+      body = toCSV(['Fecha', 'Nombre y apellido', 'Cédula', 'Usuario de Instagram', 'Marca', 'Modelo', 'Año', 'Proveedor', 'Calle', 'Ciudad', 'Teléfono', 'Factura de envío', 'Producto', 'Código de barras', 'Método de pago', 'Cobrado (USD)', 'Coste (EUR)', 'Envío (EUR)', 'Cambio USD/EUR', 'Ingreso (EUR)', 'Beneficio (EUR)', 'Beneficio (USD)'], sortSales(state.sales).map(function (x) { var sp = splitProduct(x); var eur = x.rate > 0 ? x.usd / x.rate : 0; return [x.date, x.fullname, x.cedula, x.client, sp.brand, sp.model, sp.year, x.supplier, x.street, x.city, x.phone, x.invoice ? 'Sí' : 'No', x.product, x.barcode, x.method, csvNum(x.usd), csvNum(x.cost), csvNum(x.ship), csvNum(x.rate), csvNum(eur.toFixed(2)), csvNum((eur - x.cost - x.ship).toFixed(2)), csvNum((x.usd - (x.cost + x.ship) * x.rate).toFixed(2))]; }));
     } else if (kind === 'ads') {
       name = 'astrodash-publicidad-' + stamp + '.csv';
       body = toCSV(['Mes', 'Gasto (EUR)', 'Nota'], state.ads.slice().sort(function (a, b) { return a.month < b.month ? -1 : 1; }).map(function (a) { return [a.month, csvNum(a.amount), a.note]; }));
