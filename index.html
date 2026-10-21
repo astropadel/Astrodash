@@ -294,6 +294,11 @@ details.tool[open] > summary::after { content: "\2212"; }
 .od-tot div { display: flex; justify-content: space-between; gap: 12px; }
 .od-tot .big { font-weight: 700; font-size: 17px; }
 li.sale[data-act="order-open"] { cursor: pointer; }
+.pend-box > summary { cursor: pointer; font: 600 20px/1.2 var(--font-display); letter-spacing: .03em; text-transform: uppercase; list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; }
+.pend-box > summary::-webkit-details-marker { display: none; }
+.pend-box > summary::after { content: "▾"; font-size: 18px; color: var(--fg-3); transition: transform .15s; }
+.pend-box[open] > summary::after { transform: rotate(180deg); }
+.pend-box .sales { margin-top: 8px; }
 .sfilter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -373,6 +378,10 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 
   <!-- VENTAS -->
   <section class="view" id="view-ventas" role="tabpanel" aria-labelledby="tab-ventas" hidden>
+    <details class="card pend-box" id="pend-box" hidden>
+      <summary><span id="pend-title">Pendientes de envío</span></summary>
+      <ul class="sales" id="pend-list"></ul>
+    </details>
     <form class="card" id="form-venta" novalidate>
       <h2 id="form-venta-title">Registrar venta</h2>
       <div class="fgrid">
@@ -1084,11 +1093,27 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     }).join('');
     var more = $('#sales-more'); more.hidden = state.showAll || list.length <= 40;
     if (!more.hidden) $('button', more).textContent = 'Mostrar las ' + list.length + ' ventas';
+    renderPending(all);
     // sugerencias de producto
     fillLists();
   }
 
+  function renderPending(orders) {
+    var box = $('#pend-box'); if (!box) return;
+    var list = orders.filter(function (o) { return o.status === 'pendiente'; });
+    box.hidden = isLoading() || !list.length;
+    if (box.hidden) return;
+    $('#pend-title').textContent = 'Pendientes de envío (' + list.length + ')';
+    $('#pend-list').innerHTML = list.map(function (o) {
+      var s = o.head, multi = o.items.length > 1; var usdT = 0; o.items.forEach(function (x) { usdT += x.usd; });
+      var who = [s.fullname, s.client].filter(Boolean).join(' · ');
+      var lines = o.items.map(function (x) { return '<span>' + esc(x.product || '(sin nombre)') + '</span>'; }).join('');
+      var dest = [s.city].filter(Boolean).join('');
+      return '<li class="sale" data-act="order-open" data-id="' + esc(s.id) + '"><div class="sale-date">' + esc(dateShort(s.date)) + '</div><div class="sale-main"><strong>' + esc(who || (multi ? 'Pedido de ' + o.items.length + ' artículos' : s.product || '(sin nombre)')) + '</strong>' + lines + (dest ? '<span class="sale-addr">' + esc(dest) + '</span>' : '') + '</div><div class="sale-money"><span class="usd">' + esc(fUSD.format(usdT)) + '</span></div><div class="sale-actions"><button class="link" type="button" data-act="order-open" data-id="' + esc(s.id) + '">Ver detalle</button><button class="link" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="enviado">Marcar enviado</button></div></li>';
+    }).join('');
+  }
   function lastSale() { var d = data(); var l = sortSales(d.sales); return l[0] || null; }
+  (function () { var pb = $('#pend-box'); try { pb.open = localStorage.getItem('astro.pend') === '1'; } catch (e) { /* cerrado */ } pb.addEventListener('toggle', function () { try { localStorage.setItem('astro.pend', pb.open ? '1' : '0'); } catch (e) { /* sin almacenamiento */ } }); })();
   var OD = { id: '' };
   function kv(k, v) { return v ? '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>' : ''; }
   function openOrder(id) {
@@ -1719,7 +1744,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     else if (act === 'x-del') { var xrow = el.closest('.xrow'); if (xrow) { xrow.remove(); updatePreview(); draftSave(); } }
     else if (act === 'status-filter') { state.statusFilter = el.dataset.v || ''; state.showAll = false; renderVentas(); }
     else if (act === 'adv-status') { advStatus(el.dataset.id, el.dataset.to); }
-    else if (act === 'go-pending') { state.statusFilter = 'pendiente'; setTab('ventas'); renderVentas(); }
+    else if (act === 'go-pending') { setTab('ventas'); var pb = $('#pend-box'); if (pb && !pb.hidden) { pb.open = true; try { localStorage.setItem('astro.pend', '1'); } catch (e) { /* sin almacenamiento */ } pb.scrollIntoView({ block: 'start' }); } }
     else if (act === 'pv-read') { pvRead(); }
     else if (act === 'pv-manual') { pvManual(); }
     else if (act === 'pv-save') { pvSave(); }
@@ -2385,7 +2410,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792614973'; var newBuild = '';
+  var BUILD_ID = '1792615229'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
