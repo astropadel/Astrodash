@@ -1882,9 +1882,12 @@ details.tool[open] > summary::after { content: "\2212"; }
     function lines(txt, font, color, lh) { c.font = font; c.fillStyle = color; wrapText(c, txt, W - 2 * M).forEach(function (l) { c.fillText(l, M, y); y += lh; }); }
     section('Cliente');
     if (s.fullname) lines(s.fullname, '600 40px ' + BODY, INK, 52);
+    if (s.cedula) lines('Cédula: ' + s.cedula, '400 32px ' + BODY, INK, 44);
+    if (s.phone) lines('Teléfono: ' + s.phone, '400 32px ' + BODY, INK, 44);
     if (s.client) lines(s.client, '400 32px ' + BODY, GREY, 44);
-    if (s.address) { y += 8; lines(s.address, '400 32px ' + BODY, INK, 44); }
-    if (!s.fullname && !s.client && !s.address) lines('—', '400 32px ' + BODY, GREY, 44);
+    if (!s.fullname && !s.client && !s.cedula && !s.phone) lines('—', '400 32px ' + BODY, GREY, 44);
+    var dest = [s.street, s.city].filter(Boolean).join('\n');
+    if (dest) { section('Envío a'); lines(dest, '400 32px ' + BODY, INK, 44); }
     section('Compra');
     var sp = splitProduct(s);
     lines(s.product || '—', '700 56px ' + DISP, INK, 64);
