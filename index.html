@@ -63,8 +63,8 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 h1, h2, h3, p { margin: 0; }
 h2 { font: 600 22px/1.15 var(--font-display); letter-spacing: .03em; text-transform: uppercase; text-wrap: balance; }
 button, input, select { font-family: inherit; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; overflow-x: hidden; }
-body { overflow-x: hidden; overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+body { -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .muted { color: var(--fg-3); }
 
@@ -2417,7 +2417,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792615611'; var newBuild = '';
+  var BUILD_ID = '1792663273'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
