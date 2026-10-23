@@ -331,7 +331,15 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip-info { background: var(--accent-soft); color: var(--accent); }
-.cli-row { cursor: pointer; }
+.cli-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.cli-row { display: flex; justify-content: space-between; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.cli-main { min-width: 0; flex: 1; }
+.cli-main strong { display: block; overflow-wrap: anywhere; }
+.cli-money { flex: none; text-align: right; display: grid; gap: 2px; align-content: start; }
+.cli-money .usd { font-weight: 700; }
+.cli-money .sub { color: var(--fg-2); font-size: 13.5px; }
+.cli-det { overflow-wrap: anywhere; }
+.nav-sub { margin-left: 8px; color: var(--accent); }
 .cli-row .sub { display: block; color: var(--fg-2); font-size: 14px; }
 .cli-det { display: none; padding: 6px 0 2px; font-size: 14px; color: var(--fg-2); }
 .cli-row.open .cli-det { display: block; }
@@ -409,12 +417,14 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 <nav class="nav" aria-label="Secciones">
   <div class="inner">
     <button class="menu-btn" type="button" id="menu-btn" data-act="toggle-menu" aria-expanded="false" aria-controls="menu-panel"><span class="burger" aria-hidden="true"><i></i><i></i><i></i></span><span id="menu-label">Resumen</span><span class="chev" aria-hidden="true">▾</span></button>
+    <button class="menu-btn nav-sub" type="button" id="nav-sub" data-act="nav-sub" hidden></button>
     <div class="nav-right"><span class="status" id="status" aria-live="polite"></span><button class="lock-btn" type="button" data-act="lock" id="lock-btn" aria-label="Bloquear" title="Bloquear"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="shackle" d="M8 11V8a4 4 0 0 1 8 0v3"/><rect x="5" y="11" width="14" height="10" rx="2.5"/><circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none"/></svg></button></div>
   </div>
   <div class="menu-panel" id="menu-panel" hidden>
     <div class="list" role="tablist" aria-label="Secciones">
     <button class="tab" role="tab" id="tab-resumen" data-tab="resumen" aria-selected="true" aria-controls="view-resumen">Resumen</button>
     <button class="tab" role="tab" id="tab-ventas" data-tab="ventas" aria-selected="false" aria-controls="view-ventas">Ventas</button>
+    <button class="tab" role="tab" id="tab-clientes" data-tab="clientes" aria-selected="false" aria-controls="view-clientes">Clientes</button>
     <button class="tab" role="tab" id="tab-b2b" data-tab="b2b" aria-selected="false" aria-controls="view-b2b">B2B</button>
     <button class="tab" role="tab" id="tab-inventario" data-tab="inventario" aria-selected="false" aria-controls="view-inventario">Inventario</button>
     <button class="tab" role="tab" id="tab-proveedores" data-tab="proveedores" aria-selected="false" aria-controls="view-proveedores">Proveedores</button>
@@ -449,13 +459,6 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     <details class="card pend-box" id="pend-box" hidden>
       <summary><span id="pend-title">Pendientes de envío</span></summary>
       <ul class="sales" id="pend-list"></ul>
-    </details>
-    <details class="card pend-box" id="cli-box">
-      <summary><span id="cli-title">Clientes</span></summary>
-      <div class="field" style="margin-top:10px"><label for="cli-q">Buscar cliente</label><input type="search" id="cli-q" placeholder="Buscar por nombre, @usuario, teléfono o ciudad" autocomplete="off"></div>
-      <ul class="sales" id="cli-list"></ul>
-      <div class="btn-row"><button class="btn btn-ghost" type="button" data-act="export-clients">Exportar clientes (CSV)</button></div>
-      <p class="hint" id="cli-msg" role="status"></p>
     </details>
     <form class="card" id="form-venta" novalidate>
       <h2 id="form-venta-title">Registrar venta</h2>
@@ -498,6 +501,16 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   </section>
 
   <!-- B2B -->
+  <section class="view" id="view-clientes" role="tabpanel" aria-labelledby="tab-clientes" hidden>
+    <div class="card" id="cli-box">
+      <h2 id="cli-title">Clientes</h2>
+      <div class="field" style="margin-top:10px"><label for="cli-q">Buscar cliente</label><input type="search" id="cli-q" placeholder="Nombre, @usuario, teléfono o ciudad" autocomplete="off"></div>
+      <ul class="cli-list" id="cli-list"></ul>
+      <div class="btn-row"><button class="btn btn-ghost" type="button" data-act="export-clients">Exportar clientes (CSV)</button></div>
+      <p class="hint" id="cli-msg" role="status"></p>
+    </div>
+  </section>
+
   <section class="view" id="view-b2b" role="tabpanel" aria-labelledby="tab-b2b" hidden>
     <form class="card" id="form-b2b" novalidate>
       <h2 id="q-title">Presupuesto para comercio</h2>
@@ -1167,17 +1180,17 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
   function renderClients() {
     var box = $('#cli-box'); if (!box) return; var d = data(); var all = clientsOf(d.sales);
-    $('#cli-title').textContent = 'Clientes (' + all.length + ')';
+    $('#cli-title').textContent = 'Clientes' + (all.length ? ' (' + all.length + ')' : '');
     var q = ($('#cli-q').value || '').toLowerCase().trim();
     var list = q ? all.filter(function (c) { return [c.fullname, c.client, c.phone, c.city, c.email, c.cedula].join(' ').toLowerCase().indexOf(q) > -1; }) : all;
     var ul = $('#cli-list');
     if (isLoading()) { ul.innerHTML = '<li class="muted pad">Cargando…</li>'; return; }
-    if (!list.length) { ul.innerHTML = '<li class="muted pad">' + (all.length ? 'Ningún cliente coincide.' : 'Aquí aparecerán tus clientes según registres ventas.') + '</li>'; return; }
+    if (!list.length) { ul.innerHTML = '<li class="muted pad" style="padding:12px 0">' + (all.length ? 'Ningún cliente coincide.' : 'Aquí aparecerán tus clientes según registres ventas.') + '</li>'; return; }
     ul.innerHTML = list.map(function (c) {
       var name = c.fullname || c.client || c.phone || c.cedula;
       var sub = [c.client && c.fullname ? c.client : '', c.city].filter(Boolean).join(' · ');
       var det = [c.phone && 'Tel. ' + c.phone, c.email, c.cedula && 'C.I. ' + c.cedula, c.street].filter(Boolean).map(esc).join(' · ');
-      return '<li class="sale cli-row" data-act="cli-toggle"><div class="sale-main"><strong>' + esc(name) + '</strong>' + (sub ? '<span class="sub">' + esc(sub) + '</span>' : '') + '<div class="cli-det">' + (det ? det + '<br>' : '') + c.items.map(esc).join('<br>') + '</div></div><div class="sale-money"><span class="usd">' + esc(fUSD.format(c.usd)) + '</span><span class="sub">' + c.orders + (c.orders === 1 ? ' pedido' : ' pedidos') + '</span></div></li>';
+      return '<li class="cli-row" data-act="cli-toggle"><div class="cli-main"><strong>' + esc(name) + '</strong>' + (sub ? '<span class="sub">' + esc(sub) + '</span>' : '') + '<div class="cli-det">' + (det ? det + '<br>' : '') + c.items.map(esc).join('<br>') + '</div></div><div class="cli-money"><span class="usd">' + esc(fUSD.format(c.usd)) + '</span><span class="sub">' + c.orders + (c.orders === 1 ? ' pedido' : ' pedidos') + '</span></div></li>';
     }).join('');
   }
   /* ---- Envíos semanales: lo vendido hasta el miércoles 16:00 sale antes de ese miércoles; lo que entra después, antes del siguiente ---- */
@@ -1638,7 +1651,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   var csvNum = function (n) { return String(+n || 0).replace('.', ','); };
   function toCSV(head, rows) { return '﻿' + [head].concat(rows).map(function (r) { return r.map(csvCell).join(';'); }).join('\r\n'); }
   async function exportFile(kind) {
-    var msg = $('#backup-msg'); msg.textContent = '';
+    var msg = $(kind === 'clients' ? '#cli-msg' : '#backup-msg'); msg.textContent = '';
     if (state.demo) { msg.textContent = 'Estás viendo datos de ejemplo. Sal del ejemplo para exportar los reales.'; return; }
     if (state.dbStatus !== 'ok') { msg.textContent = 'Los datos aún no están disponibles en esta vista.'; return; }
     var dl = null;
@@ -1872,10 +1885,12 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     state.tab = t;
     setMenu(false);
     var lab = $('#tab-' + t); if (lab) $('#menu-label').textContent = lab.textContent;
-    ['resumen', 'ventas', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].forEach(function (k) {
+    ['resumen', 'ventas', 'clientes', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].forEach(function (k) {
       $('#view-' + k).hidden = k !== t;
       $('#tab-' + k).setAttribute('aria-selected', k === t ? 'true' : 'false');
     });
+    var sb = $('#nav-sub'); sb.hidden = !(t === 'ventas' || t === 'clientes'); sb.textContent = t === 'ventas' ? 'Clientes' : 'Ventas'; sb.dataset.go = t === 'ventas' ? 'clientes' : 'ventas';
+    if (t === 'clientes') renderClients();
     if (t === 'resumen') { drawChart(); if (typeof loadFollowers === 'function') loadFollowers(false); }
     if (t === 'inventario') renderStock();
     if (t === 'proveedores') renderProveedores();
@@ -1927,6 +1942,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
+    else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
     else if (act === 'cli-toggle') { el.classList.toggle('open'); }
     else if (act === 'export-clients') { exportFile('clients'); }
     else if (act === 'cal-prev') { state.calOff--; renderResumen(); }
@@ -2592,7 +2608,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792759635'; var newBuild = '';
+  var BUILD_ID = '1792759949'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2770,7 +2786,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 
   /* ---------- Arranque ---------- */
   var h0 = location.hash.replace('#', '');
-  if (['resumen', 'ventas', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
+  if (['resumen', 'ventas', 'clientes', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
   $('#a-month').value = todayISO().slice(0, 7);
   resetQuote();
   resetForm(false);
