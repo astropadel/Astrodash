@@ -639,9 +639,13 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       <summary>Acceso en este dispositivo</summary>
       <div class="tool-body">
         <p class="muted">El PIN solo vale en este dispositivo: sirve para entrar sin escribir el email y la contraseña. Si te equivocas 5 veces, se cierra la sesión y hay que volver a poner la contraseña.</p>
+        <p class="muted" id="bio-note" hidden>La huella o Face ID es una comodidad más, junto al PIN. Lo confirma el propio dispositivo y la app nunca ve tus datos biométricos. Hay que activarla en cada dispositivo.</p>
+        <p class="hint" id="bio-msg" role="status"></p>
         <div class="btn-row">
           <button class="btn btn-ghost" type="button" data-act="pin-change">Crear o cambiar PIN</button>
           <button class="btn btn-ghost" type="button" data-act="pin-remove">Quitar PIN</button>
+          <button class="btn btn-ghost" type="button" data-act="bio-enable" id="bio-enable" hidden>Activar huella o Face ID</button>
+          <button class="btn btn-ghost" type="button" data-act="bio-disable" id="bio-disable" hidden>Quitar huella o Face ID</button>
           <button class="btn btn-ghost" type="button" data-act="sign-out">Cerrar sesión</button>
         </div>
       </div>
@@ -706,6 +710,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       <button class="key" type="button" data-k="7">7</button><button class="key" type="button" data-k="8">8</button><button class="key" type="button" data-k="9">9</button>
       <span class="key blank"></span><button class="key" type="button" data-k="0">0</button><button class="key" type="button" data-k="back" aria-label="Borrar">⌫</button>
     </div>
+    <button class="btn btn-ghost" type="button" data-act="bio-unlock" id="bio-btn" hidden style="width:100%;margin-top:6px">Entrar con huella o Face ID</button>
     <p class="lock-links"><button class="link" type="button" data-act="pin-skip" id="pin-skip" hidden>Ahora no</button><button class="link" type="button" data-act="use-login" id="pin-forgot">Olvidé el PIN: usar email y contraseña</button></p>
     </div>
   </div>
@@ -1772,7 +1777,10 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     else if (act === 'use-login') { signOutNow(); }
     else if (act === 'pin-skip') { unlock(); }
     else if (act === 'pin-change') { startPin('create'); }
-    else if (act === 'pin-remove') { lsDel(PIN_KEY); toast('PIN quitado de este dispositivo'); }
+    else if (act === 'pin-remove') { lsDel(PIN_KEY); lsDel(BIO_KEY); refreshBio(); toast('PIN quitado de este dispositivo'); }
+    else if (act === 'bio-enable') { bioEnable(); }
+    else if (act === 'bio-disable') { lsDel(BIO_KEY); refreshBio(); bioMsg('Huella o Face ID quitado de este dispositivo.'); }
+    else if (act === 'bio-unlock') { bioUnlock(); }
     else if (act === 'sign-out') { signOutNow(); }
     else if (act === 'check-update') { checkUpdateNow(el); }
     else if (act === 'app-update') { try { clearTimeout(draftTimer); draftSave(); } catch (e) { /* sigue */ } location.href = location.pathname + '?b=' + encodeURIComponent(newBuild || Date.now()); }
@@ -2450,7 +2458,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792740774'; var newBuild = '';
+  var BUILD_ID = '1792741394'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2477,7 +2485,44 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* sin almacenamiento */ } }
   function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { /* sin almacenamiento */ } }
+  var BIO_KEY = 'astro.bio'; var bioOK = false;
   function hasPin() { return !!lsGet(PIN_KEY); }
+  function hasBio() { return !!lsGet(BIO_KEY); }
+  function b64u(buf) { var s = ''; var b = new Uint8Array(buf); for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  function unb64u(t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t); var b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
+  function refreshBio() {
+    var on = bioOK && hasBio();
+    var btn = $('#bio-btn'); if (btn) btn.hidden = !(on && !lockEl.hidden && !$('#pane-pin').hidden && pinMode === 'enter');
+    var en = $('#bio-enable'), di = $('#bio-disable'), nt = $('#bio-note');
+    if (en) en.hidden = !bioOK || on || !hasPin(); if (di) di.hidden = !on; if (nt) nt.hidden = !bioOK;
+  }
+  function bioMsg(t) { var m = $('#bio-msg'); if (m) m.textContent = t || ''; }
+  async function bioEnable() {
+    bioMsg('');
+    if (!bioOK) { bioMsg('Este dispositivo no admite huella o Face ID en el navegador.'); return; }
+    if (!hasPin()) { bioMsg('Primero crea un PIN en este dispositivo.'); return; }
+    try {
+      var cred = await navigator.credentials.create({ publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)), rp: { name: 'AstroDash', id: location.hostname },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'astrodash', displayName: 'AstroDash' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' }, timeout: 60000, attestation: 'none' } });
+      if (!cred || !cred.rawId) throw new Error('sin credencial');
+      lsSet(BIO_KEY, b64u(cred.rawId)); refreshBio(); bioMsg('Listo: la próxima vez podrás entrar con huella o Face ID.'); toast('Huella o Face ID activado');
+    } catch (ex) { bioMsg(ex && ex.name === 'NotAllowedError' ? 'Se canceló o no se pudo verificar. Inténtalo de nuevo.' : 'No se pudo activar en este dispositivo.'); }
+  }
+  async function bioUnlock() {
+    var msg = lockMsg; var btn = $('#bio-btn'); if (!hasBio()) { refreshBio(); return; }
+    btn.disabled = true; msg('');
+    try {
+      var got = await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rpId: location.hostname,
+        allowCredentials: [{ type: 'public-key', id: unb64u(lsGet(BIO_KEY)), transports: ['internal'] }], userVerification: 'required', timeout: 60000 } });
+      if (got && got.rawId && b64u(got.rawId) === lsGet(BIO_KEY)) { btn.disabled = false; unlock(); return; }
+      msg('No se pudo verificar. Usa tu PIN.');
+    } catch (ex) { msg(ex && ex.name === 'NotAllowedError' ? 'No se pudo verificar. Usa tu PIN.' : 'No se pudo usar la huella o Face ID. Usa tu PIN.'); }
+    btn.disabled = false;
+  }
+  try { if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(function (v) { bioOK = !!v; refreshBio(); }, function () { /* sin biometría */ }); } catch (e) { /* sin biometría */ }
   function toHex(buf) { return Array.prototype.map.call(new Uint8Array(buf), function (x) { return x.toString(16).padStart(2, '0'); }).join(''); }
   function pinHash(pin) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode('astrodash-web:' + pin)).then(toHex); }
   function paintDots() { $$('.dot', lockEl).forEach(function (d, i) { d.classList.toggle('on', i < entered.length); }); }
@@ -2491,10 +2536,10 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     pinMode = mode; entered = ''; newPin = ''; paintDots(); lockMsg('');
     $('#pin-title').textContent = mode === 'enter' ? 'Introduce tu PIN' : 'Crea un PIN de 4 dígitos para este dispositivo';
     $('#pin-skip').hidden = mode === 'enter'; $('#pin-forgot').hidden = mode !== 'enter';
-    lockEl.hidden = false; document.body.classList.add('locked'); showPane('pin');
+    lockEl.hidden = false; document.body.classList.add('locked'); showPane('pin'); refreshBio();
   }
-  function unlock() { var lbn = $('#lock-btn'); if (lbn) lbn.classList.remove('closed'); lockEl.hidden = true; document.body.classList.remove('locked'); loginFails = 0; pinFails = 0; entered = ''; paintDots(); $('#l-pass').value = ''; setTimeout(drawChart, 0); if (state.tab === 'resumen') loadFollowers(false); A.markIn(); }
-  async function signOutNow() { try { if (A.sb) await A.sb.auth.signOut(); } catch (e) { /* se recarga igualmente */ } lsDel(PIN_KEY); lsDel(DRAFT_KEY); location.reload(); }
+  function unlock() { var lbn = $('#lock-btn'); if (lbn) lbn.classList.remove('closed'); lockEl.hidden = true; document.body.classList.remove('locked'); refreshBio(); loginFails = 0; pinFails = 0; entered = ''; paintDots(); $('#l-pass').value = ''; setTimeout(drawChart, 0); if (state.tab === 'resumen') loadFollowers(false); A.markIn(); }
+  async function signOutNow() { try { if (A.sb) await A.sb.auth.signOut(); } catch (e) { /* se recarga igualmente */ } lsDel(PIN_KEY); lsDel(BIO_KEY); lsDel(DRAFT_KEY); location.reload(); }
   function lockNow() { if (hasPin()) startPin('enter'); else signOutNow(); }
   async function press(k) {
     if (lockEl.hidden || $('#pane-pin').hidden) return;
@@ -2511,7 +2556,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     } else if (pinMode === 'create') {
       newPin = entered; entered = ''; pinMode = 'confirm'; paintDots(); $('#pin-title').textContent = 'Repite el PIN para confirmarlo';
     } else {
-      if (entered === newPin) { try { lsSet(PIN_KEY, await pinHash(newPin)); } catch (e) { /* sin PIN */ } unlock(); toast('PIN guardado en este dispositivo'); }
+      if (entered === newPin) { try { lsSet(PIN_KEY, await pinHash(newPin)); } catch (e) { /* sin PIN */ } unlock(); toast(bioOK && !hasBio() ? 'PIN guardado. Puedes activar huella o Face ID en Herramientas.' : 'PIN guardado en este dispositivo'); }
       else { lockMsg('Los PIN no coinciden. Prueba otra vez.'); startPin('create'); lockMsg('Los PIN no coinciden. Prueba otra vez.'); }
     }
   }
@@ -2549,7 +2594,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   if (!A.sb) { showLogin(); }
   else A.sb.auth.getSession().then(function (r) {
     if (r && r.data && r.data.session) { A.markIn(); if (hasPin()) startPin('enter'); else unlock(); }
-    else { lsDel(PIN_KEY); showLogin(); }
+    else { lsDel(PIN_KEY); lsDel(BIO_KEY); showLogin(); }
   }, function () { showLogin(); });
 
   /* ---------- Arranque ---------- */
