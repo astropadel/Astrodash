@@ -272,6 +272,7 @@ details.tool[open] > summary::after { content: "\2212"; }
 .key { width: 72px; height: 72px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: 600 28px/1 var(--font-display); cursor: pointer; }
 .key:active { background: var(--accent-soft); }
 .key.blank { visibility: hidden; }
+.key.bio { display: inline-grid; place-items: center; color: var(--accent); }
 .lock-form { display: grid; gap: 12px; width: 100%; }
 .lock-box #pane-pin { display: grid; justify-items: center; gap: 14px; width: 100%; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--fg-2); cursor: pointer; }
@@ -733,9 +734,8 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       <button class="key" type="button" data-k="1">1</button><button class="key" type="button" data-k="2">2</button><button class="key" type="button" data-k="3">3</button>
       <button class="key" type="button" data-k="4">4</button><button class="key" type="button" data-k="5">5</button><button class="key" type="button" data-k="6">6</button>
       <button class="key" type="button" data-k="7">7</button><button class="key" type="button" data-k="8">8</button><button class="key" type="button" data-k="9">9</button>
-      <span class="key blank"></span><button class="key" type="button" data-k="0">0</button><button class="key" type="button" data-k="back" aria-label="Borrar">⌫</button>
+      <button class="key bio" type="button" data-act="bio-unlock" id="bio-btn" aria-label="Entrar con huella o Face ID" style="visibility:hidden"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 10v1.5M15 10v1.5M12 10v3.2h-1M9 16c1.7 1.3 4.3 1.3 6 0"/></svg></button><button class="key" type="button" data-k="0">0</button><button class="key" type="button" data-k="back" aria-label="Borrar">⌫</button>
     </div>
-    <button class="btn btn-ghost" type="button" data-act="bio-unlock" id="bio-btn" hidden style="width:100%;margin-top:6px">Entrar con huella o Face ID</button>
     <p class="lock-links"><button class="link" type="button" data-act="pin-skip" id="pin-skip" hidden>Ahora no</button><button class="link" type="button" data-act="use-login" id="pin-forgot">Olvidé el PIN: usar email y contraseña</button></p>
     </div>
   </div>
@@ -2486,7 +2486,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792742586'; var newBuild = '';
+  var BUILD_ID = '1792753637'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2520,7 +2520,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   function unb64u(t) { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; var s = atob(t); var b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; }
   function refreshBio() {
     var on = bioOK && hasBio();
-    var btn = $('#bio-btn'); if (btn) btn.hidden = !(on && !lockEl.hidden && !$('#pane-pin').hidden && pinMode === 'enter');
+    var btn = $('#bio-btn'); if (btn) btn.style.visibility = (on && !lockEl.hidden && !$('#pane-pin').hidden && pinMode === 'enter') ? 'visible' : 'hidden';
     var en = $('#bio-enable'), di = $('#bio-disable'), nt = $('#bio-note');
     if (en) en.hidden = !bioOK || on || !hasPin(); if (di) di.hidden = !on; if (nt) nt.hidden = !bioOK;
   }
