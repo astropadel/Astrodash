@@ -154,6 +154,8 @@ a.link { text-decoration: none; display: inline-flex; align-items: center; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .num { text-align: right; white-space: nowrap; }
 .tbl .pname { font-weight: 600; min-width: 140px; }
+button.chip { border: 1px solid var(--line); background: transparent; color: var(--fg-2); font-family: inherit; padding: 6px 12px; margin: 0 4px 6px 0; cursor: pointer; }
+button.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 .chip-good { background: var(--good-soft); color: var(--good); }
 .chip-warn { background: var(--warn-soft); color: var(--warn); }
@@ -455,6 +457,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     <button class="tab" role="tab" id="tab-resumen" data-tab="resumen" aria-selected="true" aria-controls="view-resumen">Resumen</button>
     <button class="tab" role="tab" id="tab-ventas" data-tab="ventas" aria-selected="false" aria-controls="view-ventas">Ventas</button>
     <button class="tab" role="tab" id="tab-clientes" data-tab="clientes" aria-selected="false" aria-controls="view-clientes">Clientes</button>
+    <button class="tab" role="tab" id="tab-catalogo" data-tab="catalogo" aria-selected="false" aria-controls="view-catalogo">Catálogo</button>
     <button class="tab" role="tab" id="tab-b2b" data-tab="b2b" aria-selected="false" aria-controls="view-b2b">B2B</button>
     <button class="tab" role="tab" id="tab-inventario" data-tab="inventario" aria-selected="false" aria-controls="view-inventario">Inventario</button>
     <button class="tab" role="tab" id="tab-proveedores" data-tab="proveedores" aria-selected="false" aria-controls="view-proveedores">Proveedores</button>
@@ -539,6 +542,16 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       <ul class="cli-list" id="cli-list"></ul>
       <div class="btn-row"><button class="btn btn-ghost" type="button" data-act="export-clients">Exportar clientes (CSV)</button></div>
       <p class="hint" id="cli-msg" role="status"></p>
+    </div>
+  </section>
+
+  <section class="view" id="view-catalogo" role="tabpanel" aria-labelledby="tab-catalogo" hidden>
+    <div class="card">
+      <h2>Catálogo de palas</h2>
+      <div class="field" style="margin-top:10px"><label for="cat-q">Buscar modelo</label><input type="search" id="cat-q" placeholder="Genius, Vertex, Metalbone…" autocomplete="off"></div>
+      <div class="chips" id="cat-brands" style="margin-top:10px"></div>
+      <ul class="cli-list" id="cat-list"></ul>
+      <p class="hint" id="cat-msg" role="status"></p>
     </div>
   </section>
 
@@ -1277,6 +1290,26 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     ['touchstart', 'mousedown', 'focusin'].forEach(function (ev) { tr.addEventListener(ev, function () { paused = true; }, { passive: true }); });
     ['touchend', 'mouseup', 'focusout', 'mouseleave'].forEach(function (ev) { tr.addEventListener(ev, function () { setTimeout(function () { paused = false; }, 4000); }, { passive: true }); });
     NEWS.timer = setInterval(function () { if (!paused && !document.hidden && state.tab === 'resumen') go(NEWS.idx + 1); }, 6000);
+  }
+  /* ---- Catálogo de palas (catalog.json + miniaturas img/) ---- */
+  var CAT = { items: [], brand: '' };
+  function renderCatalog() {
+    var q = ($('#cat-q').value || '').toLowerCase().trim();
+    var brands = []; CAT.items.forEach(function (i) { if (brands.indexOf(i.b) < 0) brands.push(i.b); });
+    $('#cat-brands').innerHTML = ['Todas'].concat(brands).map(function (b) { var on = (b === 'Todas' ? '' : b) === CAT.brand; return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-act="cat-brand" data-b="' + esc(b === 'Todas' ? '' : b) + '">' + esc(b) + '</button>'; }).join('');
+    var L = CAT.items.filter(function (i) { return (!CAT.brand || i.b === CAT.brand) && (!q || (i.b + ' ' + i.n).toLowerCase().indexOf(q) > -1); });
+    $('#cat-list').innerHTML = L.map(function (i) {
+      var img = i.i ? '<img src="' + esc(i.i) + '" alt="" loading="lazy" style="width:44px;height:56px;object-fit:contain;flex:none">' : '<span style="width:44px;height:56px;flex:none"></span>';
+      return '<li class="cli-row" style="cursor:default;align-items:center;justify-content:flex-start">' + img + '<span><b>' + esc(i.n) + '</b><span class="sub">' + esc(i.b) + (i.y ? ' · ' + i.y : '') + '</span></span></li>';
+    }).join('') || '<li class="muted" style="padding:12px 0">Sin resultados</li>';
+    $('#cat-msg').textContent = L.length + ' de ' + CAT.items.length + ' modelos' + (CAT.items.length ? '' : ' (cargando…)');
+  }
+  function loadCatalog() {
+    fetch('catalog.json?b=' + encodeURIComponent(typeof BUILD_ID === 'string' ? BUILD_ID : ''), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !Array.isArray(j.items)) return;
+      CAT.items = j.items; window.AstroCatalog = CAT.items;
+      if (state.tab === 'catalogo') renderCatalog();
+    }).catch(function () { /* sin catálogo */ });
   }
   function loadNews() {
     fetch('news.json?b=' + encodeURIComponent(typeof BUILD_ID === 'string' ? BUILD_ID : ''), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
@@ -2053,12 +2086,13 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     state.tab = t;
     setMenu(false);
     var lab = $('#tab-' + t); if (lab) $('#menu-label').textContent = lab.textContent;
-    ['resumen', 'ventas', 'clientes', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].forEach(function (k) {
+    ['resumen', 'ventas', 'clientes', 'catalogo', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].forEach(function (k) {
       $('#view-' + k).hidden = k !== t;
       $('#tab-' + k).setAttribute('aria-selected', k === t ? 'true' : 'false');
     });
     var sb = $('#nav-sub'); sb.hidden = !(t === 'ventas' || t === 'clientes'); sb.textContent = t === 'ventas' ? 'Clientes' : 'Ventas'; sb.dataset.go = t === 'ventas' ? 'clientes' : 'ventas';
     if (t === 'clientes') renderClients();
+    if (t === 'catalogo') renderCatalog();
     if (t === 'resumen') { drawChart(); if (typeof loadFollowers === 'function') loadFollowers(false); }
     if (t === 'inventario') renderStock();
     if (t === 'proveedores') renderProveedores();
@@ -2110,6 +2144,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
+    else if (act === 'cat-brand') { CAT.brand = el.dataset.b || ''; renderCatalog(); }
     else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
     else if (act === 'fold-form') { foldForm(!$('#form-venta').classList.contains('collapsed'), true); }
     else if (act === 'wty-form') { wtyForm(el.dataset.id); }
@@ -2168,6 +2203,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   $('#form-venta').addEventListener('submit', saveSale);
   $('#form-ads').addEventListener('submit', saveAd);
   $('#cli-q').addEventListener('input', renderClients);
+  $('#cat-q').addEventListener('input', renderCatalog);
   $('#sales-q').addEventListener('input', function () { state.salesQ = this.value.trim(); state.showAll = false; renderVentas(); });
   ['f-usd', 'f-cost', 'f-ship', 'f-rate'].forEach(function (id) { $('#' + id).addEventListener('input', updatePreview); });
   $('#extra-items').addEventListener('input', updatePreview);
@@ -2784,7 +2820,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792766854'; var newBuild = '';
+  var BUILD_ID = '1792769435'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2963,8 +2999,9 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   /* ---------- Arranque ---------- */
   try { foldForm(localStorage.getItem('astro.fold') === '1', false); } catch (e) { /* abierto */ }
   loadNews();
+  loadCatalog();
   var h0 = location.hash.replace('#', '');
-  if (['resumen', 'ventas', 'clientes', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
+  if (['resumen', 'ventas', 'clientes', 'catalogo', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
   $('#a-month').value = todayISO().slice(0, 7);
   resetQuote();
   resetForm(false);
