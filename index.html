@@ -331,6 +331,22 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip-info { background: var(--accent-soft); color: var(--accent); }
+.cal-card h2 { margin: 0; }
+.cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-nav { display: flex; gap: 6px; }
+.cal-nav button { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--fg); font-size: 18px; cursor: pointer; }
+.cal-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 12px 0; }
+.cal-day { text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 6px 0 8px; background: var(--surface); }
+.cal-day small { display: block; color: var(--fg-2); font-size: 12px; }
+.cal-day b { display: block; font-size: 17px; }
+.cal-day .n { display: inline-block; min-width: 22px; margin-top: 4px; border-radius: 11px; font-size: 13px; line-height: 22px; background: var(--accent-soft); color: var(--accent); }
+.cal-day .n.z { background: transparent; color: var(--fg-3, #9aa3b5); }
+.cal-day.wed { border-color: var(--accent); background: var(--accent-soft); }
+.cal-day.today { box-shadow: inset 0 0 0 2px var(--accent); }
+.cal-sum { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.cal-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.cal-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.cal-list li span { font-size: 14px; color: var(--fg-2); }
 .pend-card { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .update-banner { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; align-items: center; gap: 12px; background: var(--fg); color: var(--bg); padding: 10px 12px 10px 16px; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); max-width: calc(100% - 32px); font-size: 15px; }
 .update-banner[hidden] { display: none; }
@@ -874,7 +890,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   var dateShort = function (iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' }).replace(/\./g, ''); };
   var daysSince = function (iso) { return Math.round((Date.parse(todayISO() + 'T12:00:00') - Date.parse(iso + 'T12:00:00')) / 864e5); };
 
-  var state = { tab: 'resumen', period: 'all', demo: false, db: null, dbStatus: 'loading', loaded: { sales: false, ads: false, stock: false, quotes: false }, sales: [], ads: [], stock: [], editing: null, stockEditing: null, quotes: [], q: { id: null, lines: [{ product: '', units: '', cost: '' }] }, invoice: null, invoiceOrig: null, invoiceUnsaved: false, invoiceBusy: false, brandFilter: '', showAll: false, statusFilter: '', prov: { suppliers: [], prices: [] } };
+  var state = { tab: 'resumen', period: 'all', demo: false, db: null, dbStatus: 'loading', loaded: { sales: false, ads: false, stock: false, quotes: false }, sales: [], ads: [], stock: [], editing: null, stockEditing: null, quotes: [], q: { id: null, lines: [{ product: '', units: '', cost: '' }] }, invoice: null, invoiceOrig: null, invoiceUnsaved: false, invoiceBusy: false, brandFilter: '', showAll: false, calOff: 0, editCreated: '', statusFilter: '', prov: { suppliers: [], prices: [] } };
   var DEMO = null;
 
   // Importes en la moneda elegida. Coste y envío se pagan en euros; en dólares se pasan al cambio de la propia venta.
@@ -1010,6 +1026,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     var plabel = all ? 'Todo el tiempo' : monthLong(state.period);
 
     var h = '';
+    h += calendarHtml(d.sales);
     (function () { var c = stCounts(ordersOf(d.sales)); if (c.pendiente + c.enviado) h += '<section class="card pend-card" aria-label="Pedidos en curso"><div><strong>Pedidos en curso</strong><div class="muted">' + c.pendiente + (c.pendiente === 1 ? ' pendiente de envío' : ' pendientes de envío') + ' · ' + c.enviado + (c.enviado === 1 ? ' enviado' : ' enviados') + ' sin entregar</div></div><button class="btn btn-ghost btn-sm" type="button" data-act="go-pending">Ver pendientes</button></section>'; })();
     h += '<section class="card hero" aria-label="Beneficio">';
     h += '<div><p class="eyebrow">Beneficio neto · ' + esc(plabel) + '</p>';
@@ -1124,6 +1141,43 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   var ST_LABEL = { pendiente: 'Pendiente de envío', enviado: 'Enviado', entregado: 'Entregado' };
   var ST_CHIP = { pendiente: 'chip-warn', enviado: 'chip-info', entregado: 'chip-good' };
   var ST_NEXT = { pendiente: ['enviado', 'Marcar enviado'], enviado: ['entregado', 'Marcar entregado'] };
+  /* ---- Envíos semanales: lo vendido hasta el miércoles 16:00 sale antes de ese miércoles; lo que entra después, antes del siguiente ---- */
+  var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+  var isoD = function (d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); };
+  function saleTs(s) {
+    var ca = s.createdAt ? new Date(s.createdAt) : null;
+    if (ca && !isNaN(ca) && isoD(ca) === s.date) return ca;
+    return new Date(s.date + 'T12:00:00');
+  }
+  function deadlineOf(ts) {
+    var d = new Date(ts.getFullYear(), ts.getMonth(), ts.getDate(), 16, 0, 0);
+    d.setDate(d.getDate() + ((3 - ts.getDay() + 7) % 7)); if (d <= ts) d.setDate(d.getDate() + 7); return d;
+  }
+  function batchLabel(d) { return 'miércoles ' + d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace(/\./g, ''); }
+  function batchOrders(orders, key) { return orders.filter(function (o) { return isoD(deadlineOf(saleTs(o.head))) === key; }); }
+  function calendarHtml(sales) {
+    var orders = ordersOf(sales); var now = new Date();
+    var dl = deadlineOf(now); dl.setDate(dl.getDate() + 7 * state.calOff); var key = isoD(dl);
+    var list = batchOrders(orders, key); var c = stCounts(list);
+    var start = new Date(dl.getFullYear(), dl.getMonth(), dl.getDate() - 6, 12, 0, 0);
+    var names = ['Jue', 'Vie', 'Sáb', 'Dom', 'Lun', 'Mar', 'Mié'];
+    var cells = names.map(function (nm, i) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i, 12, 0, 0); var iso = isoD(d);
+      var n = list.filter(function (o) { return isoD(saleTs(o.head)) === iso; }).length;
+      return '<div class="cal-day' + (i === 6 ? ' wed' : '') + (iso === isoD(now) ? ' today' : '') + '"><small>' + nm + '</small><b>' + d.getDate() + '</b><span class="n' + (n ? '' : ' z') + '">' + n + '</span></div>';
+    }).join('');
+    var ms = dl - now; var late = ms < 0; var days = Math.ceil(ms / 86400000);
+    var when = late ? 'Fecha límite pasada' : (isoD(dl) === isoD(now) ? 'Límite hoy a las 16:00' : days === 1 ? 'Límite mañana a las 16:00' : 'Límite el ' + batchLabel(dl) + ' a las 16:00 (en ' + days + ' días)');
+    var warn = late && c.pendiente ? '<span class="chip chip-warn">' + c.pendiente + ' sin enviar</span>' : '';
+    var rows = list.map(function (o) {
+      var h = o.head; var who = [h.fullname, h.client].filter(Boolean).join(' · ') || h.product || '(sin nombre)';
+      return '<li data-act="order-open" data-id="' + esc(h.id) + '"><div><strong>' + esc(who) + '</strong><br><span>' + esc(o.items.length > 1 ? o.items.length + ' artículos' : (h.product || '')) + '</span></div><span class="chip ' + ST_CHIP[o.status] + '">' + ST_LABEL[o.status] + '</span></li>';
+    }).join('');
+    return '<section class="card cal-card" aria-label="Envíos de la semana"><div class="cal-head"><div><h2>Envío del ' + esc(batchLabel(dl)) + '</h2><div class="muted">' + esc(when) + '</div></div><div class="cal-nav"><button type="button" data-act="cal-prev" aria-label="Semana anterior">‹</button><button type="button" data-act="cal-next" aria-label="Semana siguiente">›</button></div></div>' +
+      '<div class="cal-strip">' + cells + '</div>' +
+      '<div class="cal-sum"><strong>' + c.pendiente + (c.pendiente === 1 ? ' pendiente' : ' pendientes') + '</strong><span class="muted">' + c.enviado + ' enviados · ' + c.entregado + ' entregados · ' + list.length + (list.length === 1 ? ' pedido' : ' pedidos') + '</span>' + warn + (state.calOff ? '<button class="btn btn-ghost btn-sm" type="button" data-act="cal-now">Volver a esta semana</button>' : '') + '</div>' +
+      (rows ? '<ul class="cal-list">' + rows + '</ul>' : '<p class="muted" style="margin-top:10px">Aún no hay pedidos en este envío.</p>') + '</section>';
+  }
   function ordersOf(sales) {
     var map = {}, list = [];
     sales.forEach(function (x) { var k = x.orderId || x.id; if (!map[k]) { map[k] = { key: k, items: [] }; list.push(map[k]); } map[k].items.push(x); });
@@ -1235,7 +1289,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     var ls = state.demo ? null : lastSale();
     $('#f-method').value = method || (ls ? ls.method : '');
     $('#f-rate').value = rate || (ls && ls.rate ? toField(ls.rate) : '');
-    state.editing = null; state.editExtraIds = []; clearExtras();
+    state.editing = null; state.editCreated = ''; state.editExtraIds = []; clearExtras();
     $('#form-venta-title').textContent = 'Registrar venta';
     $('#f-submit').textContent = 'Guardar venta';
     $('#f-cancel').hidden = true; $('#form-error').textContent = '';
@@ -1339,18 +1393,21 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       var ref = state.editing ? col.doc(state.editing) : col.doc();
       if (state.invoice) v.invoice = { id: state.invoice.id, name: state.invoice.name, type: state.invoice.type };
       v.orderId = xs.length ? ref.id : ''; v.pos = 0;
+      var ca0 = state.editing ? state.editCreated : new Date().toISOString(); if (ca0) v.createdAt = ca0;
       await ref.set(v);
       var keepIds = {};
       for (var k = 0; k < xs.length; k++) {
         var xr = xs[k]; var xref = xr.docid ? col.doc(xr.docid) : col.doc(); keepIds[xref.id] = 1;
-        await xref.set({ date: v.date, client: v.client, fullname: v.fullname, cedula: v.cedula, status: v.status, street: v.street, city: v.city, phone: v.phone, method: v.method, rate: v.rate, barcode: '', ship: 0,
+        await xref.set({ date: v.date, client: v.client, fullname: v.fullname, cedula: v.cedula, status: v.status, street: v.street, city: v.city, phone: v.phone, method: v.method, rate: v.rate, barcode: '', ship: 0, createdAt: ca0 || '',
           brand: xr.brand, model: xr.model, year: xr.year, supplier: xr.supplier, product: xr.product, usd: xr.usd, cost: xr.cost, orderId: ref.id, pos: k + 1 });
       }
       var oldX = state.editExtraIds || [];
       for (var q = 0; q < oldX.length; q++) { if (!keepIds[oldX[q]]) await col.doc(oldX[q]).delete(); }
       if (state.invoiceOrig && (!state.invoice || state.invoice.id !== state.invoiceOrig.id)) delAsset(state.invoiceOrig.id);
       state.invoiceUnsaved = false; state.invoiceOrig = state.invoice;
-      toast(state.editing ? 'Cambios guardados' : xs.length ? 'Pedido guardado (' + (xs.length + 1) + ' artículos)' : 'Venta guardada');
+      var okMsg = state.editing ? 'Cambios guardados' : xs.length ? 'Pedido guardado (' + (xs.length + 1) + ' artículos)' : 'Venta guardada';
+      if (!state.editing) { try { var bd = deadlineOf(saleTs({ date: v.date, createdAt: ca0 })); var others = batchOrders(ordersOf(state.sales.filter(function (x) { return x.id !== ref.id && x.orderId !== ref.id; })), isoD(bd)).filter(function (o) { return o.status === 'pendiente'; }).length + (v.status === 'pendiente' ? 1 : 0); okMsg += ' · Envío del ' + batchLabel(bd) + ': ' + others + (others === 1 ? ' pendiente' : ' pendientes'); } catch (e2) { /* sin aviso de envío */ } }
+      toast(okMsg);
       resetForm(true);
       $('#f-client').focus();
     } catch (ex) {
@@ -1364,7 +1421,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; $('#f-status').value = s.status; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
     $('#f-usd').value = toField(s.usd); $('#f-cost').value = toField(s.cost); $('#f-ship').value = toField(s.ship); $('#f-rate').value = toField(s.rate);
     clearExtras(); ord.items.slice(1).forEach(function (x) { var sx = splitProduct(x); addExtra({ id: x.id, brand: sx.brand, model: sx.model, year: sx.year, supplier: x.supplier, usd: toField(x.usd), cost: toField(x.cost) }); }); state.editExtraIds = ord.items.slice(1).map(function (x) { return x.id; });
-    state.editing = id; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
+    state.editing = id; state.editCreated = s.createdAt || ''; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
     updatePreview(); $('#form-venta').scrollIntoView({ block: 'start' });
   }
   async function deleteDoc(coll, id, label) {
@@ -1827,6 +1884,9 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
+    else if (act === 'cal-prev') { state.calOff--; renderResumen(); }
+    else if (act === 'cal-next') { state.calOff++; renderResumen(); }
+    else if (act === 'cal-now') { state.calOff = 0; renderResumen(); }
     else if (act === 'usr-gen') { var gp = ''; var al = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; var rb = new Uint8Array(12); crypto.getRandomValues(rb); for (var gi = 0; gi < 12; gi++) gp += al[rb[gi] % al.length]; $('#u-pass').value = gp; }
     else if (act === 'usr-create') { usrCreate(); }
     else if (act === 'usr-del') { usrDelete(el.dataset.id, el.dataset.email); }
@@ -2486,7 +2546,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792753637'; var newBuild = '';
+  var BUILD_ID = '1792759270'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
