@@ -331,6 +331,10 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip-info { background: var(--accent-soft); color: var(--accent); }
+.form-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.form-head h2 { margin: 0; }
+.fold-btn { width: 44px; height: 44px; flex: none; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--fg); font-size: 24px; line-height: 1; cursor: pointer; }
+#form-venta.collapsed > :not(.form-head) { display: none !important; }
 .chip-gar { background: #FFE08A; color: #5C4100; }
 .btn-gar { background: #F5C518; color: #2B2100; border-color: #D9AB00; font-weight: 700; }
 .wty-item { padding: 10px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
@@ -469,7 +473,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       <ul class="sales" id="pend-list"></ul>
     </details>
     <form class="card" id="form-venta" novalidate>
-      <h2 id="form-venta-title">Registrar venta</h2>
+      <div class="form-head"><h2 id="form-venta-title">Registrar venta</h2><button class="fold-btn" type="button" data-act="fold-form" id="fold-btn" aria-expanded="true" aria-controls="form-venta" aria-label="Reducir formulario">−</button></div>
       <div class="fgrid">
         <div class="field"><label for="f-date">Fecha de la venta</label><input type="date" id="f-date" required></div>
         <div class="field"><label for="f-fullname">Nombre y apellido</label><input type="text" id="f-fullname" placeholder="Nombre y apellido de la persona" autocomplete="off"></div>
@@ -1552,7 +1556,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-email').value = s.email || ''; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; $('#f-status').value = s.status; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
     $('#f-usd').value = toField(s.usd); $('#f-cost').value = toField(s.cost); $('#f-ship').value = toField(s.ship); $('#f-rate').value = toField(s.rate);
     clearExtras(); ord.items.slice(1).forEach(function (x) { var sx = splitProduct(x); addExtra({ id: x.id, brand: sx.brand, model: sx.model, year: sx.year, supplier: x.supplier, usd: toField(x.usd), cost: toField(x.cost) }); }); state.editExtraIds = ord.items.slice(1).map(function (x) { return x.id; });
-    state.editing = id; state.editCreated = s.createdAt || ''; state.editRef = s.ref || ''; state.editClaims = s.claims || []; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
+    foldForm(false, false); state.editing = id; state.editCreated = s.createdAt || ''; state.editRef = s.ref || ''; state.editClaims = s.claims || []; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
     updatePreview(); $('#form-venta').scrollIntoView({ block: 'start' });
   }
   async function deleteDoc(coll, id, label) {
@@ -1959,6 +1963,12 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     if (off) { $('#form-error').textContent = 'Esta vista no puede guardar datos. Recarga la página e inicia sesión.'; }
   }
   function renderAll() { renderStatus(); renderResumen(); renderVentas(); renderAds(); renderStock(); renderQuoteList(); renderIG(); renderFol(); renderProveedores(); }
+  function foldForm(collapse, remember) {
+    var f = $('#form-venta'), b = $('#fold-btn'); if (!f || !b) return;
+    f.classList.toggle('collapsed', !!collapse); b.textContent = collapse ? '+' : '−';
+    b.setAttribute('aria-expanded', collapse ? 'false' : 'true'); b.setAttribute('aria-label', collapse ? 'Ampliar formulario' : 'Reducir formulario');
+    if (remember) { try { localStorage.setItem('astro.fold', collapse ? '1' : '0'); } catch (e) { /* sin almacenamiento */ } }
+  }
   function setTab(t) {
     state.tab = t;
     setMenu(false);
@@ -2021,6 +2031,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
     else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
+    else if (act === 'fold-form') { foldForm(!$('#form-venta').classList.contains('collapsed'), true); }
     else if (act === 'wty-form') { wtyForm(el.dataset.id); }
     else if (act === 'wty-save') { wtySave(el.dataset.id); }
     else if (act === 'wty-resolve') { var wo = orderById(el.dataset.id); if (wo) { var wn = $('#wn-' + el.dataset.cid); wtyUpdate(wo, (wo.head.claims || []).map(function (c) { return c.id === el.dataset.cid ? Object.assign({}, c, { status: 'resuelta', note: wn ? wn.value.trim() : '', resolvedDate: todayISO() }) : c; }), 'Garantía marcada como resuelta'); } }
@@ -2035,7 +2046,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     else if (act === 'usr-create') { usrCreate(); }
     else if (act === 'usr-del') { usrDelete(el.dataset.id, el.dataset.email); }
     else if (act === 'fol-refresh') { loadFollowers(true); }
-    else if (act === 'new-sale') { setTab('ventas'); window.scrollTo(0, 0); setTimeout(function () { $('#f-client').focus(); }, 30); }
+    else if (act === 'new-sale') { foldForm(false, false); setTab('ventas'); window.scrollTo(0, 0); setTimeout(function () { $('#f-client').focus(); }, 30); }
     else if (act === 'demo-on') { state.demo = true; DEMO = null; renderAll(); resetForm(false); }
     else if (act === 'demo-off') { state.demo = false; renderAll(); resetForm(false); }
     else if (act === 'ig-refresh') { loadInstagram(true); }
@@ -2692,7 +2703,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792761287'; var newBuild = '';
+  var BUILD_ID = '1792762156'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2869,6 +2880,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }, function () { showLogin(); });
 
   /* ---------- Arranque ---------- */
+  try { foldForm(localStorage.getItem('astro.fold') === '1', false); } catch (e) { /* abierto */ }
   var h0 = location.hash.replace('#', '');
   if (['resumen', 'ventas', 'clientes', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
   $('#a-month').value = todayISO().slice(0, 7);
