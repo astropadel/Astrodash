@@ -237,6 +237,15 @@ a.btn { text-decoration: none; }
 .chev { color: var(--fg-3); transition: transform .15s; } .menu-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .menu-panel { position: absolute; left: 0; right: 0; top: 100%; background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: 0 12px 28px rgba(0, 0, 0, .14); z-index: 30; }
 .menu-panel .list { max-width: 1080px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-left, 0px)) 14px; display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.admin-only { display: none !important; }
+body.adm .admin-only { display: block !important; }
+body.ro #form-b2b, body.ro #form-stock, body.ro #form-sup, body.ro #form-ads,
+body.ro [data-act="edit-sale"], body.ro [data-act="del-sale"], body.ro [data-act="adv-status"], body.ro [data-act="edit-ad"], body.ro [data-act="del-ad"],
+body.ro [data-act="edit-stock"], body.ro [data-act="del-stock"], body.ro [data-act="del-quote"], body.ro [data-act="q-edit"], body.ro [data-act="q-del-line"],
+body.ro [data-act="q-add"], body.ro [data-act="q-new"], body.ro [data-act="q-save"], body.ro [data-act="q-image"], body.ro [data-act="sup-del"], body.ro [data-act^="pv-"],
+body.ro [data-act="rm-invoice"], body.ro [data-act="save-receipt"], body.ro #tool-users { display: none !important; }
+.usr-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.usr-row small { display: block; color: var(--fg-2); }
 .menu-upd { display: block; width: 100%; margin-top: 8px; min-height: 46px; padding: 0 14px; text-align: left; font-size: 16px; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: var(--fg-2); cursor: pointer; }
 .menu-panel .tab { border: 1px solid transparent; border-radius: 8px; text-align: left; padding: 0 14px; min-height: 46px; font-size: 16px; }
 .menu-panel .tab[aria-selected="true"] { background: var(--surface-2); border-color: var(--accent); color: var(--fg); }
@@ -648,6 +657,22 @@ li.sale[data-act="order-open"] { cursor: pointer; }
           <button class="btn btn-ghost" type="button" data-act="bio-disable" id="bio-disable" hidden>Quitar huella o Face ID</button>
           <button class="btn btn-ghost" type="button" data-act="sign-out">Cerrar sesión</button>
         </div>
+      </div>
+    </details>
+    <details class="card tool admin-only" id="tool-users">
+      <summary>Usuarios</summary>
+      <div class="tool-body">
+        <p class="muted">Crea cuentas para otras personas. Podrán ver todo y añadir ventas nuevas, pero no editar ni borrar nada.</p>
+        <div class="fgrid">
+          <div class="field"><label for="u-email">Email</label><input type="email" id="u-email" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+          <div class="field"><label for="u-pass">Contraseña (mínimo 8)</label><input type="text" id="u-pass" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
+        </div>
+        <p class="hint" id="u-msg" role="status"></p>
+        <div class="btn-row">
+          <button class="btn btn-ghost" type="button" data-act="usr-gen">Generar contraseña</button>
+          <button class="btn" type="button" data-act="usr-create" id="u-create">Crear usuario</button>
+        </div>
+        <div id="u-list"></div>
       </div>
     </details>
     <details class="card tool" id="tool-backup">
@@ -1802,6 +1827,9 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
+    else if (act === 'usr-gen') { var gp = ''; var al = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; var rb = new Uint8Array(12); crypto.getRandomValues(rb); for (var gi = 0; gi < 12; gi++) gp += al[rb[gi] % al.length]; $('#u-pass').value = gp; }
+    else if (act === 'usr-create') { usrCreate(); }
+    else if (act === 'usr-del') { usrDelete(el.dataset.id, el.dataset.email); }
     else if (act === 'fol-refresh') { loadFollowers(true); }
     else if (act === 'new-sale') { setTab('ventas'); window.scrollTo(0, 0); setTimeout(function () { $('#f-client').focus(); }, 30); }
     else if (act === 'demo-on') { state.demo = true; DEMO = null; renderAll(); resetForm(false); }
@@ -2458,7 +2486,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792741394'; var newBuild = '';
+  var BUILD_ID = '1792742586'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2538,7 +2566,44 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     $('#pin-skip').hidden = mode === 'enter'; $('#pin-forgot').hidden = mode !== 'enter';
     lockEl.hidden = false; document.body.classList.add('locked'); showPane('pin'); refreshBio();
   }
-  function unlock() { var lbn = $('#lock-btn'); if (lbn) lbn.classList.remove('closed'); lockEl.hidden = true; document.body.classList.remove('locked'); refreshBio(); loginFails = 0; pinFails = 0; entered = ''; paintDots(); $('#l-pass').value = ''; setTimeout(drawChart, 0); if (state.tab === 'resumen') loadFollowers(false); A.markIn(); }
+  function unlock() { var lbn = $('#lock-btn'); if (lbn) lbn.classList.remove('closed'); lockEl.hidden = true; document.body.classList.remove('locked'); refreshBio(); loginFails = 0; pinFails = 0; entered = ''; paintDots(); $('#l-pass').value = ''; setTimeout(drawChart, 0); if (state.tab === 'resumen') loadFollowers(false); A.markIn(); applyRole(); }
+    async function usrCall(body) {
+    var ses = await A.sb.auth.getSession(); var tk = ses && ses.data && ses.data.session && ses.data.session.access_token;
+    if (!tk) return { error: 'Sesión caducada. Vuelve a entrar.' };
+    try {
+      var r = await fetch('https://ytypjwnuuoskhlntuvhr.supabase.co/functions/v1/admin-users', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tk, apikey: 'sb_publishable_agXwN3Ba-2jzyj7BRyVBiQ_jrVqy-Z0' }, body: JSON.stringify(body) });
+      var j = await r.json().catch(function () { return {}; });
+      if (r.status === 404) return { error: 'La función de usuarios aún no está instalada en Supabase.' };
+      if (!r.ok) return { error: j.error || 'No se pudo completar.' };
+      return j;
+    } catch (e) { return { error: 'No se pudo conectar. Revisa tu conexión.' }; }
+  }
+  async function usrList() {
+    var box = $('#u-list'); if (!box) return;
+    var j = await usrCall({ action: 'list' });
+    if (j.error) { box.innerHTML = '<p class="muted">' + esc(j.error) + '</p>'; return; }
+    box.innerHTML = j.users.length ? j.users.map(function (u) { return '<div class="usr-row"><span>' + esc(u.email) + '<small>' + (u.last_sign_in_at ? 'Último acceso: ' + esc(u.last_sign_in_at.slice(0, 10)) : 'Aún no ha entrado') + '</small></span><button class="btn btn-ghost" type="button" data-act="usr-del" data-id="' + esc(u.id) + '" data-email="' + esc(u.email) + '">Borrar</button></div>'; }).join('') : '<p class="muted">Aún no has creado usuarios.</p>';
+  }
+  async function usrCreate() {
+    var m = $('#u-msg'); m.textContent = ''; var em = $('#u-email').value.trim(); var pw = $('#u-pass').value;
+    if (!em || pw.length < 8) { m.textContent = 'Escribe el email y una contraseña de al menos 8 caracteres.'; return; }
+    var b = $('#u-create'); b.disabled = true;
+    var j = await usrCall({ action: 'create', email: em, password: pw }); b.disabled = false;
+    if (j.error) { m.textContent = j.error; return; }
+    m.textContent = 'Usuario creado. Pásale el email y la contraseña: ' + em + ' · ' + pw;
+    $('#u-email').value = ''; $('#u-pass').value = ''; usrList();
+  }
+  async function usrDelete(id, email) {
+    if (!confirm('¿Borrar el usuario ' + email + '? Ya no podrá entrar.')) return;
+    var j = await usrCall({ action: 'delete', id: id }); if (j.error) { toast(j.error); return; }
+    toast('Usuario borrado'); usrList();
+  }
+  async function applyRole() {
+    var adm = false, ro = true;
+    try { var r = await A.sb.auth.getSession(); var u = r && r.data && r.data.session && r.data.session.user; if (u) { ro = !!(u.app_metadata && u.app_metadata.role === 'seller'); adm = !ro; } } catch (e) { ro = true; }
+    document.body.classList.toggle('adm', adm); document.body.classList.toggle('ro', ro);
+    if (adm) usrList();
+  }
   async function signOutNow() { try { if (A.sb) await A.sb.auth.signOut(); } catch (e) { /* se recarga igualmente */ } lsDel(PIN_KEY); lsDel(BIO_KEY); lsDel(DRAFT_KEY); location.reload(); }
   function lockNow() { if (hasPin()) startPin('enter'); else signOutNow(); }
   async function press(k) {
