@@ -1177,12 +1177,17 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   var ST_NEXT = { pendiente: ['enviado', 'Marcar enviado'], enviado: ['entregado', 'Marcar entregado'] };
   /* ---- Referencia del pedido (AP-26-0001) y garantías ---- */
   function refOf(o) { var h = o.head || o; return h.ref || ('AP-' + String(h.date).replace(/-/g, '') + '-' + String(h.id).slice(-4).toUpperCase()); }
-  function nextRef(sales) { var yy = String(new Date().getFullYear()).slice(2); var max = 0; sales.forEach(function (x) { var m = /^AP-(\d{2})-(\d{4})$/.exec(x.ref || ''); if (m && m[1] === yy) max = Math.max(max, +m[2]); }); return 'AP-' + yy + '-' + String(max + 1).padStart(4, '0'); }
+  var REF_RE = /^[A-Z]{6}$/;
+  function nextRef(sales) {
+    var used = {}; sales.forEach(function (x) { if (x.ref) used[x.ref] = 1; });
+    for (var n = 0; n < 50; n++) { var b = new Uint8Array(6); crypto.getRandomValues(b); var r = ''; for (var i = 0; i < 6; i++) r += String.fromCharCode(65 + b[i] % 26); if (!used[r]) return r; }
+    return 'X' + Date.now().toString(36).toUpperCase().slice(-5);
+  }
   function warOpen(o) { return ((o.head || o).claims || []).filter(function (c) { return c.status === 'abierta'; }).length; }
   function garChip(o) { var cl = (o.head || o).claims || []; if (!cl.length) return ''; return warOpen(o) ? ' <span class="chip chip-gar">Garantía</span>' : ' <span class="chip">Garantía resuelta</span>'; }
   async function ensureRefs() {
     if (state.refBusy || state.demo || !state.db || !state.loaded.sales || !document.body.classList.contains('adm')) return;
-    var all = ordersOf(state.sales).filter(function (o) { return !o.head.ref; }); if (!all.length) return;
+    var all = ordersOf(state.sales).filter(function (o) { return !REF_RE.test(o.head.ref || ''); }); if (!all.length) return;
     state.refBusy = true;
     try {
       all.sort(function (a, b) { var x = a.head, y = b.head; return x.date < y.date ? -1 : x.date > y.date ? 1 : ((x.createdAt || '') < (y.createdAt || '') ? -1 : (x.id < y.id ? -1 : 1)); });
@@ -1517,7 +1522,8 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       if (state.invoice) v.invoice = { id: state.invoice.id, name: state.invoice.name, type: state.invoice.type };
       v.orderId = xs.length ? ref.id : ''; v.pos = 0;
       var ca0 = state.editing ? state.editCreated : new Date().toISOString(); if (ca0) v.createdAt = ca0;
-      v.ref = (state.editing && state.editRef) || nextRef(state.sales); if (state.editing && state.editClaims.length) v.claims = state.editClaims;
+      var curS = state.editing ? state.sales.filter(function (x) { return x.id === state.editing; })[0] : null; var curRef = curS ? curS.ref : state.editRef;
+      v.ref = (state.editing && REF_RE.test(curRef || '')) ? curRef : nextRef(state.sales); if (state.editing && state.editClaims.length) v.claims = state.editClaims;
       await ref.set(v);
       var keepIds = {};
       for (var k = 0; k < xs.length; k++) {
@@ -2686,7 +2692,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792761070'; var newBuild = '';
+  var BUILD_ID = '1792761287'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
