@@ -359,6 +359,20 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
 .cli-row .sub { display: block; color: var(--fg-2); font-size: 14px; }
 .cli-det { display: none; padding: 6px 0 2px; font-size: 14px; color: var(--fg-2); }
 .cli-row.open .cli-det { display: block; }
+.news-card { padding: 14px 0 12px; overflow: hidden; }
+.news-head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 8px; }
+.news-head h2 { margin: 0; font-size: 15px; }
+.news-head .sub { font-size: 12px; color: var(--fg-3); }
+.news-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.news-track::-webkit-scrollbar { display: none; }
+.news-slide { flex: 0 0 100%; scroll-snap-align: start; padding: 0 16px; box-sizing: border-box; display: block; color: inherit; text-decoration: none; }
+.news-slide .tag { display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.news-slide strong { display: block; margin: 3px 0 4px; font-size: 16px; line-height: 1.25; overflow-wrap: anywhere; }
+.news-slide p { margin: 0; font-size: 13.5px; color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.news-slide .src { display: block; margin-top: 6px; font-size: 12px; color: var(--fg-3); }
+.news-dots { display: flex; justify-content: center; gap: 6px; margin-top: 10px; }
+.news-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.news-dots i.on { background: var(--accent); }
 .cal-card h2 { margin: 0; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cal-nav { display: flex; gap: 6px; }
@@ -1070,6 +1084,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
 
     var h = '';
     h += calendarHtml(d.sales);
+    h += newsHtml();
     (function () { var c = stCounts(ordersOf(d.sales)); if (c.pendiente + c.enviado) h += '<section class="card pend-card" aria-label="Pedidos en curso"><div><strong>Pedidos en curso</strong><div class="muted">' + c.pendiente + (c.pendiente === 1 ? ' pendiente de envío' : ' pendientes de envío') + ' · ' + c.enviado + (c.enviado === 1 ? ' enviado' : ' enviados') + ' sin entregar</div></div><button class="btn btn-ghost btn-sm" type="button" data-act="go-pending">Ver pendientes</button></section>'; })();
     h += '<section class="card hero" aria-label="Beneficio">';
     h += '<div><p class="eyebrow">Beneficio neto · ' + esc(plabel) + '</p>';
@@ -1114,7 +1129,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     }
     h += '</section>';
     body.innerHTML = h;
-    drawChart();
+    drawChart(); newsStart();
   }
   function row(op, label, val, cls) {
     return '<div class="rrow ' + (cls || '') + '"><dt class="op" style="margin:0">' + op + '</dt><dd class="lbl" style="margin:0">' + esc(label) + '</dd><dd class="val" style="margin:0">' + esc(val) + '</dd></div>';
@@ -1245,6 +1260,30 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     $('#od-body').innerHTML = h;
     $('#od-actions').innerHTML = '<button class="btn btn-ghost" type="button" data-act="order-close">Cerrar</button>';
     $('#od-modal').hidden = false; var f = $('#od-actions button'); if (f) f.focus();
+  }
+  /* ---- Noticias del pádel (news.json se actualiza desde el repositorio) ---- */
+  var NEWS = { items: [], updated: '', idx: 0, timer: null, loaded: false };
+  function newsHtml() {
+    if (!NEWS.items.length) return '';
+    var sl = NEWS.items.map(function (n) { return '<a class="news-slide" href="' + esc(n.url) + '" target="_blank" rel="noopener"><span class="tag">' + esc(n.topic || 'Noticia') + '</span><strong>' + esc(n.title) + '</strong><p>' + esc(n.summary || '') + '</p><span class="src">' + esc(n.source || '') + (n.date ? ' · ' + esc(dateShort(n.date)) : '') + ' · Leer ›</span></a>'; }).join('');
+    var dots = NEWS.items.map(function (n, i) { return '<i' + (i === NEWS.idx ? ' class="on"' : '') + '></i>'; }).join('');
+    return '<section class="card news-card" aria-label="Noticias del pádel"><div class="news-head"><h2>Noticias del pádel</h2><span class="sub">' + (NEWS.updated ? 'Actualizado ' + esc(dateShort(NEWS.updated)) : '') + '</span></div><div class="news-track" id="news-track">' + sl + '</div><div class="news-dots" id="news-dots">' + dots + '</div></section>';
+  }
+  function newsStart() {
+    clearInterval(NEWS.timer); var tr = $('#news-track'); if (!tr || NEWS.items.length < 2) return;
+    var paused = false; var go = function (i) { NEWS.idx = (i + NEWS.items.length) % NEWS.items.length; tr.scrollTo({ left: tr.clientWidth * NEWS.idx, behavior: 'smooth' }); };
+    tr.scrollLeft = tr.clientWidth * NEWS.idx;
+    tr.addEventListener('scroll', function () { var i = Math.round(tr.scrollLeft / Math.max(1, tr.clientWidth)); if (i !== NEWS.idx && i >= 0 && i < NEWS.items.length) { NEWS.idx = i; $$('#news-dots i').forEach(function (d, k) { d.classList.toggle('on', k === i); }); } }, { passive: true });
+    ['touchstart', 'mousedown', 'focusin'].forEach(function (ev) { tr.addEventListener(ev, function () { paused = true; }, { passive: true }); });
+    ['touchend', 'mouseup', 'focusout', 'mouseleave'].forEach(function (ev) { tr.addEventListener(ev, function () { setTimeout(function () { paused = false; }, 4000); }, { passive: true }); });
+    NEWS.timer = setInterval(function () { if (!paused && !document.hidden && state.tab === 'resumen') go(NEWS.idx + 1); }, 6000);
+  }
+  function loadNews() {
+    fetch('news.json?b=' + encodeURIComponent(typeof BUILD_ID === 'string' ? BUILD_ID : ''), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !Array.isArray(j.items)) return;
+      NEWS.items = j.items.filter(function (n) { return n && n.title && /^https?:\/\//.test(n.url || ''); }).slice(0, 5); NEWS.updated = String(j.updated || ''); NEWS.loaded = true;
+      if (state.tab === 'resumen') renderResumen();
+    }).catch(function () { /* sin noticias */ });
   }
   /* ---- Envíos semanales: lo vendido hasta el miércoles 16:00 sale antes de ese miércoles; lo que entra después, antes del siguiente ---- */
   var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -2745,7 +2784,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792762399'; var newBuild = '';
+  var BUILD_ID = '1792764123'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2923,6 +2962,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
 
   /* ---------- Arranque ---------- */
   try { foldForm(localStorage.getItem('astro.fold') === '1', false); } catch (e) { /* abierto */ }
+  loadNews();
   var h0 = location.hash.replace('#', '');
   if (['resumen', 'ventas', 'clientes', 'b2b', 'inventario', 'proveedores', 'publicidad', 'instagram', 'seguimientos', 'herramientas'].indexOf(h0) > -1) state.tab = h0;
   $('#a-month').value = todayISO().slice(0, 7);
