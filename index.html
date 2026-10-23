@@ -1172,9 +1172,9 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     var map = {}, list = [];
     sortOrders(ordersOf(sales)).forEach(function (o) {
       var h = o.head, k = clientKey(h); if (!k) return;
-      var c = map[k]; if (!c) { c = map[k] = { key: k, fullname: '', client: '', cedula: '', phone: '', email: '', city: '', street: '', orders: 0, usd: 0, last: '', items: [] }; list.push(c); }
+      var c = map[k]; if (!c) { c = map[k] = { key: k, fullname: '', client: '', cedula: '', phone: '', email: '', city: '', street: '', orders: 0, usd: 0, last: '', items: [], list: [], nItems: 0 }; list.push(c); }
       ['fullname', 'client', 'cedula', 'phone', 'email', 'city', 'street'].forEach(function (f) { if (!c[f] && h[f]) c[f] = h[f]; });
-      c.orders++; o.items.forEach(function (x) { c.usd += x.usd; c.items.push((x.product || '(sin nombre)') + ' · ' + dateShort(h.date)); }); if (!c.last || h.date > c.last) c.last = h.date;
+      c.orders++; c.list.push(o); c.nItems += o.items.length; o.items.forEach(function (x) { c.usd += x.usd; }); if (!c.last || h.date > c.last) c.last = h.date;
     });
     return list;
   }
@@ -1189,9 +1189,23 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     ul.innerHTML = list.map(function (c) {
       var name = c.fullname || c.client || c.phone || c.cedula;
       var sub = [c.client && c.fullname ? c.client : '', c.city].filter(Boolean).join(' · ');
-      var det = [c.phone && 'Tel. ' + c.phone, c.email, c.cedula && 'C.I. ' + c.cedula, c.street].filter(Boolean).map(esc).join(' · ');
-      return '<li class="cli-row" data-act="cli-toggle"><div class="cli-main"><strong>' + esc(name) + '</strong>' + (sub ? '<span class="sub">' + esc(sub) + '</span>' : '') + '<div class="cli-det">' + (det ? det + '<br>' : '') + c.items.map(esc).join('<br>') + '</div></div><div class="cli-money"><span class="usd">' + esc(fUSD.format(c.usd)) + '</span><span class="sub">' + c.orders + (c.orders === 1 ? ' pedido' : ' pedidos') + '</span></div></li>';
+      return '<li class="cli-row" data-act="cli-open" data-key="' + esc(c.key) + '"><div class="cli-main"><strong>' + esc(name) + '</strong>' + (sub ? '<span class="sub">' + esc(sub) + '</span>' : '') + '<span class="sub">' + c.nItems + (c.nItems === 1 ? ' artículo' : ' artículos') + ' · ' + c.orders + (c.orders === 1 ? ' pedido' : ' pedidos') + '</span></div><div class="cli-money"><span class="usd">' + esc(fUSD.format(c.usd)) + '</span><span class="sub">Ver detalle ›</span></div></li>';
     }).join('');
+  }
+  function openClient(key) {
+    var c = clientsOf(data().sales).filter(function (x) { return x.key === key; })[0]; if (!c) return; OD.id = '';
+    var name = c.fullname || c.client || c.phone || c.cedula;
+    var h = '<h2 id="od-title">' + esc(name) + '</h2><p class="muted" style="margin:4px 0 0">' + c.nItems + (c.nItems === 1 ? ' artículo' : ' artículos') + ' en ' + c.orders + (c.orders === 1 ? ' pedido' : ' pedidos') + ' · ' + esc(fUSD.format(c.usd)) + ' cobrados · última compra ' + esc(dateShort(c.last)) + '</p>';
+    var kvs = '<dl class="od-kv">' + kv('Nombre', c.fullname) + kv('Instagram', c.client) + kv('Cédula', c.cedula) + kv('Teléfono', c.phone) + kv('Email', c.email) + kv('Envío a', [c.street, c.city].filter(Boolean).join(', ')) + '</dl>';
+    h += '<div class="od-sec"><h3>Datos del cliente</h3>' + kvs + '</div><div class="od-sec"><h3>Pedidos</h3>';
+    h += c.list.map(function (o) {
+      var hd = o.head; var tot = 0; o.items.forEach(function (x) { tot += x.usd; });
+      var lines = o.items.map(function (x) { return '<span class="sub">• ' + esc(x.product || '(sin nombre)') + '</span>'; }).join('');
+      return '<div class="od-item cli-ord" data-act="order-open" data-id="' + esc(hd.id) + '" style="cursor:pointer"><strong>' + esc(dateShort(hd.date)) + ' · ' + esc(fUSD.format(tot)) + ' <span class="chip ' + ST_CHIP[o.status] + '">' + esc(ST_LABEL[o.status]) + '</span></strong>' + lines + '</div>';
+    }).join('') + '</div>';
+    $('#od-body').innerHTML = h;
+    $('#od-actions').innerHTML = '<button class="btn btn-ghost" type="button" data-act="order-close">Cerrar</button>';
+    $('#od-modal').hidden = false; var f = $('#od-actions button'); if (f) f.focus();
   }
   /* ---- Envíos semanales: lo vendido hasta el miércoles 16:00 sale antes de ese miércoles; lo que entra después, antes del siguiente ---- */
   var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
@@ -1943,7 +1957,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
     else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
-    else if (act === 'cli-toggle') { el.classList.toggle('open'); }
+    else if (act === 'cli-open') { openClient(el.dataset.key); }
     else if (act === 'export-clients') { exportFile('clients'); }
     else if (act === 'cal-prev') { state.calOff--; renderResumen(); }
     else if (act === 'cal-next') { state.calOff++; renderResumen(); }
@@ -2608,7 +2622,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792759949'; var newBuild = '';
+  var BUILD_ID = '1792760156'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
