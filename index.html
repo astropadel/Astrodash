@@ -252,7 +252,7 @@ details.tool[open] > summary::after { content: "\2212"; }
 .inline-row input { flex: 1; min-width: 0; }
 .btn-sm { min-height: 0; padding: 0 12px; font-size: 14px; white-space: nowrap; }
 #lock { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; overflow-y: auto; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
-.locked > :not(#lock) { visibility: hidden; }
+.locked > :not(#lock):not(#splash) { visibility: hidden; }
 .lock-box { display: grid; justify-items: center; gap: 14px; width: 100%; max-width: 300px; }
 .lock-box h2 { font-size: 26px; letter-spacing: .05em; }
 .dots { display: flex; gap: 14px; margin: 4px 0; }
@@ -305,6 +305,18 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .pend-box > summary::after { content: "▾"; font-size: 18px; color: var(--fg-3); transition: transform .15s; }
 .pend-box[open] > summary::after { transform: rotate(180deg); }
 .pend-box .sales { margin-top: 8px; }
+#splash { position: fixed; inset: 0; z-index: 200; background: #032CA6; display: grid; place-items: center; overflow: hidden; transition: opacity .35s ease; }
+#splash.out { opacity: 0; pointer-events: none; }
+.sp-stage { position: relative; width: min(78vw, 420px); height: 220px; display: grid; place-items: center; }
+.sp-iso { position: absolute; width: 190px; height: 190px; animation: spIso 1.0s cubic-bezier(.2, .8, .2, 1) both; }
+.sp-word { position: absolute; width: 100%; height: auto; opacity: 0; animation: spWord .75s cubic-bezier(.2, .8, .2, 1) .72s both; }
+.sp-bar { position: absolute; left: 50%; top: calc(50% + 40px); width: 120px; height: 4px; margin-left: -60px; border-radius: 4px; background: #D7DC46; transform: scaleX(0); animation: spBar .5s ease-out 1.05s both; }
+.sp-tag { position: absolute; top: calc(50% + 54px); left: 0; right: 0; text-align: center; color: #fff; font: 600 13px/1 "Barlow Condensed", "Arial Narrow", sans-serif; letter-spacing: .5em; text-indent: .5em; opacity: 0; animation: spTag .5s ease-out 1.15s both; }
+@keyframes spIso { 0% { opacity: 0; transform: scale(.78); } 30% { opacity: 1; transform: scale(1); } 68% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.1) translateY(-8px); } }
+@keyframes spWord { 0% { opacity: 0; transform: translateY(14px) scale(.96); clip-path: inset(0 100% 0 0); } 55% { opacity: 1; } 100% { opacity: 1; transform: none; clip-path: inset(0 0 0 0); } }
+@keyframes spBar { to { transform: scaleX(1); } }
+@keyframes spTag { to { opacity: .85; } }
+@media (prefers-reduced-motion: reduce) { #splash { display: none; } }
 .sfilter { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
@@ -327,6 +339,27 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .pv-foot .pos-text { color: var(--good); }
 </style>
 
+<div id="splash" aria-hidden="true">
+  <div class="sp-stage">
+    <img class="sp-iso" src="icon-512.png" alt="" width="220" height="220">
+    <img class="sp-word" alt="" width="720" height="100">
+    <div class="sp-bar"></div>
+    <div class="sp-tag">DASHBOARD</div>
+  </div>
+</div>
+<script>
+(function () {
+  var sp = document.getElementById('splash'); if (!sp) return;
+  var skip = /[?&]b=/.test(location.search); try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) skip = true; } catch (e) { /* sigue */ }
+  if (skip) { sp.parentNode.removeChild(sp); return; }
+  var gone = false; function done() { if (gone) return; gone = true; sp.classList.add('out'); setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 380); }
+  document.addEventListener('DOMContentLoaded', function () { var w = document.querySelector('img.wordmark'); if (w) sp.querySelector('.sp-word').src = w.src; });
+  sp.addEventListener('click', done); sp.addEventListener('touchstart', done, { passive: true });
+  var raf = window.requestAnimationFrame || function (f) { setTimeout(f, 50); };
+  raf(function () { raf(function () { setTimeout(done, 1750); }); });
+  setTimeout(done, 6000);
+})();
+</script>
 <header class="top">
   <svg class="court" viewBox="0 0 200 100" aria-hidden="true" focusable="false">
     <g fill="none" stroke="#fff" stroke-width="1.2">
@@ -2417,7 +2450,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792663273'; var newBuild = '';
+  var BUILD_ID = '1792740774'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
