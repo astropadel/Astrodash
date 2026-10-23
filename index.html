@@ -340,6 +340,10 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .wty-item { padding: 10px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
 .wty-item:first-of-type { border-top: 0; }
 .wty-item .sub { display: block; color: var(--fg-3); font-size: 13px; }
+.wph { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.wph a, .wph .wp { position: relative; width: 76px; height: 76px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--surface-2); display: block; }
+.wph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.wph .wp button { position: absolute; top: 2px; right: 2px; width: 24px; height: 24px; border-radius: 50%; border: 0; background: rgba(8,12,24,.7); color: #fff; font-size: 15px; line-height: 1; cursor: pointer; }
 .wty-form textarea { width: 100%; min-height: 88px; }
 body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
 .ref-link { background: none; border: 0; color: var(--accent); font: inherit; padding: 0; cursor: pointer; text-decoration: underline; }
@@ -880,6 +884,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       return k === 'db' ? db : k === 'assets' ? assets : k === 'downloads' ? downloads : null;
     }
   };
+  window.AstroBlobUrl = async function (id) { try { var r = await sb.storage.from(BUCKET).createSignedUrl(id, 3600); return r && r.data ? r.data.signedUrl : ''; } catch (e) { return ''; } };
   window.AstroOpenBlob = async function (id) {
     var w = null; try { w = window.open('', '_blank'); } catch (e) { w = null; }
     try {
@@ -949,7 +954,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   function isLoading() { return state.dbStatus === 'loading' || (state.dbStatus === 'ok' && !(state.loaded.sales && state.loaded.ads && state.loaded.stock && state.loaded.quotes)); }
 
   function normSale(d, id) {
-    return { id: id, ref: String(d.ref || ''), claims: Array.isArray(d.claims) ? d.claims.map(function (c) { c = c || {}; return { id: String(c.id || ''), date: String(c.date || ''), item: String(c.item || ''), text: String(c.text || ''), status: c.status === 'resuelta' ? 'resuelta' : 'abierta', note: String(c.note || ''), resolvedDate: String(c.resolvedDate || '') }; }) : [], createdAt: String(d.createdAt || ''), email: String(d.email || ''), date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', orderId: String(d.orderId || ''), pos: +d.pos || 0, brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
+    return { id: id, ref: String(d.ref || ''), claims: Array.isArray(d.claims) ? d.claims.map(function (c) { c = c || {}; return { id: String(c.id || ''), date: String(c.date || ''), item: String(c.item || ''), text: String(c.text || ''), status: c.status === 'resuelta' ? 'resuelta' : 'abierta', photos: Array.isArray(c.photos) ? c.photos.map(function (x) { return { id: String((x && x.id) || ''), name: String((x && x.name) || '') }; }).filter(function (x) { return x.id; }) : [], note: String(c.note || ''), resolvedDate: String(c.resolvedDate || '') }; }) : [], createdAt: String(d.createdAt || ''), email: String(d.email || ''), date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', orderId: String(d.orderId || ''), pos: +d.pos || 0, brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
   }
 
   function makeDemo() {
@@ -1342,7 +1347,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   var OD = { id: '' };
   function kv(k, v) { return v ? '<dt>' + esc(k) + '</dt><dd>' + esc(v) + '</dd>' : ''; }
   function openOrder(id) {
-    var o = orderById(id); if (!o) return; OD.id = o.head.id; var s = o.head; var multi = o.items.length > 1;
+    wtyDiscard(); var o = orderById(id); if (!o) return; OD.id = o.head.id; var s = o.head; var multi = o.items.length > 1;
     var rev = 0, cost = 0, ship = 0, profit = 0, usd = 0, costE = 0;
     o.items.forEach(function (x) { var c = calc(x); rev += c.rev; cost += c.cost; ship += c.ship; profit += c.profit; usd += x.usd; costE += x.cost; });
     var nro = refOf(o);
@@ -1363,19 +1368,53 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     var extra = (s.method || s.barcode ? pay : '') + (s.invoice ? '<p style="margin:8px 0 0"><a class="link" href="#" data-blob="' + esc(s.invoice.id) + '">Ver factura del envío (' + esc(s.invoice.name) + ')</a></p>' : '');
     if (extra) h += '<div class="od-sec"><h3>Pago y factura</h3>' + extra + '</div>';
     h += '<div class="od-sec" id="od-wty"><h3>Garantía</h3>' + wtyHtml(o) + '</div>';
-    $('#od-body').innerHTML = h;
+    $('#od-body').innerHTML = h; loadThumbs($('#od-body'));
     var b = '';
     if (ST_NEXT[s.status]) b += '<button class="btn btn-primary" type="button" data-act="adv-status" data-id="' + esc(s.id) + '" data-to="' + ST_NEXT[s.status][0] + '" data-close="1">' + ST_NEXT[s.status][1] + '</button>';
     b += '<button class="btn btn-ghost" type="button" data-act="receipt" data-id="' + esc(s.id) + '">Comprobante</button><button class="btn btn-gar" type="button" data-act="wty-form" data-id="' + esc(s.id) + '">Garantía</button><button class="btn btn-ghost" type="button" data-act="edit-sale" data-id="' + esc(s.id) + '" data-close="1">Editar</button><button class="btn btn-ghost" type="button" data-act="order-close">Cerrar</button>';
     $('#od-actions').innerHTML = b;
     $('#od-modal').hidden = false; var f = $('#od-actions button'); if (f) f.focus();
   }
+  var WP = { list: [], busy: 0 };
+  function loadThumbs(root) { $$('img[data-pid]', root).forEach(function (im) { if (im.src) return; window.AstroBlobUrl(im.dataset.pid).then(function (u) { if (u) im.src = u; }); }); }
+  function shrinkImage(file) {
+    return new Promise(function (res, rej) {
+      var url = URL.createObjectURL(file); var im = new Image();
+      im.onload = function () {
+        var max = 1600, w = im.naturalWidth, h = im.naturalHeight, k = Math.min(1, max / Math.max(w, h));
+        var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+        c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        c.toBlob(function (b) { b ? res(b) : rej(new Error('blob')); }, 'image/jpeg', 0.82);
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('decode')); }; im.src = url;
+    });
+  }
+  function paintWty() {
+    var box = $('#w-thumbs'); if (!box) return;
+    box.innerHTML = WP.list.map(function (x, i) { return '<span class="wp"><img alt="" src="' + esc(x.preview) + '"><button type="button" data-act="wty-rmphoto" data-i="' + i + '" aria-label="Quitar foto">×</button></span>'; }).join('') + (WP.busy ? '<span class="muted">Subiendo…</span>' : '');
+  }
+  async function onWtyPhotos() {
+    var inp = this; var files = Array.prototype.slice.call(inp.files || []); inp.value = ''; var m = $('#w-msg'); if (m) m.textContent = '';
+    if (state.demo) { m.textContent = 'En el ejemplo no se pueden subir archivos.'; return; }
+    var assets = await getAssets(); if (!assets) { m.textContent = 'Subir archivos no está disponible. Recarga la página e inicia sesión.'; return; }
+    for (var i = 0; i < files.length; i++) {
+      if (WP.list.length >= 8) { m.textContent = 'Máximo 8 fotos por garantía.'; break; }
+      WP.busy++; paintWty();
+      try {
+        var blob = await shrinkImage(files[i]);
+        var f = new File([blob], (files[i].name || 'foto').replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+        var r = await assets.upload(f); WP.list.push({ id: r.id, name: f.name, preview: URL.createObjectURL(blob) });
+      } catch (e) { m.textContent = 'No se pudo subir una foto. Si es HEIC, pásala a JPG.'; }
+      WP.busy--; paintWty();
+    }
+  }
+  function wtyDiscard() { WP.list.forEach(function (x) { delAsset(x.id); }); WP.list = []; WP.busy = 0; }
   function wtyHtml(o) {
     var cl = o.head.claims || [];
     if (!cl.length) return '<span class="muted">Sin garantías en este pedido.</span>';
     return cl.map(function (c) {
       var done = c.status === 'resuelta';
-      return '<div class="wty-item"><strong>' + esc(dateShort(c.date)) + (c.item ? ' · ' + esc(c.item) : '') + '</strong> <span class="chip ' + (done ? '' : 'chip-gar') + '">' + (done ? 'Resuelta' : 'Abierta') + '</span><div>' + esc(c.text) + '</div>' +
+      return '<div class="wty-item"><strong>' + esc(dateShort(c.date)) + (c.item ? ' · ' + esc(c.item) : '') + '</strong> <span class="chip ' + (done ? '' : 'chip-gar') + '">' + (done ? 'Resuelta' : 'Abierta') + '</span><div>' + esc(c.text) + '</div>' + ((c.photos || []).length ? '<div class="wph">' + c.photos.map(function (x) { return '<a href="#" data-blob="' + esc(x.id) + '" aria-label="Ver foto"><img alt="" data-pid="' + esc(x.id) + '"></a>'; }).join('') + '</div>' : '') +
         (done ? '<span class="sub">Resuelta el ' + esc(dateShort(c.resolvedDate || c.date)) + (c.note ? ': ' + esc(c.note) : '') + '</span>' : '<div class="wty-edit" style="margin-top:6px"><input type="text" id="wn-' + esc(c.id) + '" placeholder="Cómo se resolvió (opcional)" autocomplete="off"><div class="btn-row" style="margin-top:6px"><button class="btn btn-ghost btn-sm" type="button" data-act="wty-resolve" data-id="' + esc(o.head.id) + '" data-cid="' + esc(c.id) + '">Marcar resuelta</button><button class="btn btn-ghost btn-sm" type="button" data-act="wty-del" data-id="' + esc(o.head.id) + '" data-cid="' + esc(c.id) + '">Borrar</button></div></div>') + '</div>';
     }).join('');
   }
@@ -1383,14 +1422,16 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     var o = orderById(id); if (!o) return; var box = $('#od-wty'); if (!box || $('#w-text')) { var t0 = $('#w-text'); if (t0) t0.focus(); return; }
     var opts = o.items.length > 1 ? '<div class="field"><label for="w-item">Artículo</label><select id="w-item">' + o.items.map(function (x) { return '<option value="' + esc(x.product || '') + '">' + esc(x.product || '(sin nombre)') + '</option>'; }).join('') + '</select></div>' : '';
     var f = document.createElement('div'); f.className = 'wty-form wty-edit';
-    f.innerHTML = '<h3 style="margin:12px 0 6px">Nueva garantía</h3>' + opts + '<div class="field"><label for="w-date">Fecha</label><input type="date" id="w-date" value="' + todayISO() + '"></div><div class="field"><label for="w-text">Qué le pasó</label><textarea id="w-text" placeholder="Describe exactamente el problema: cuándo ocurrió, qué se observa, cómo lo usaba…"></textarea></div><p class="hint" id="w-msg" role="alert"></p><div class="btn-row"><button class="btn btn-gar" type="button" data-act="wty-save" data-id="' + esc(id) + '">Guardar garantía</button></div>';
-    box.appendChild(f); $('#w-text').focus(); f.scrollIntoView({ block: 'nearest' });
+    f.innerHTML = '<h3 style="margin:12px 0 6px">Nueva garantía</h3>' + opts + '<div class="field"><label for="w-date">Fecha</label><input type="date" id="w-date" value="' + todayISO() + '"></div><div class="field"><label for="w-text">Qué le pasó</label><textarea id="w-text" placeholder="Describe exactamente el problema: cuándo ocurrió, qué se observa, cómo lo usaba…"></textarea></div><div class="field"><label for="w-photos">Fotos del producto <span class="hint">(opcional)</span></label><input type="file" id="w-photos" accept="image/jpeg,image/png,image/webp,image/*" multiple><div class="wph" id="w-thumbs"></div></div><p class="hint" id="w-msg" role="alert"></p><div class="btn-row"><button class="btn btn-gar" type="button" data-act="wty-save" data-id="' + esc(id) + '">Guardar garantía</button></div>';
+    box.appendChild(f); WP.list = []; $('#w-photos').addEventListener('change', onWtyPhotos); $('#w-text').focus(); f.scrollIntoView({ block: 'nearest' });
   }
   async function wtySave(id) {
     var o = orderById(id); if (!o) return; var txt = ($('#w-text').value || '').trim(); var m = $('#w-msg');
     if (!txt) { m.textContent = 'Describe qué le pasó.'; return; }
     var it = $('#w-item') ? $('#w-item').value : (o.items[0].product || '');
-    var cl = (o.head.claims || []).concat([{ id: Date.now().toString(36), date: $('#w-date').value || todayISO(), item: it, text: txt, status: 'abierta', note: '', resolvedDate: '' }]);
+    var cl = (o.head.claims || []).concat([{ id: Date.now().toString(36), date: $('#w-date').value || todayISO(), item: it, text: txt, status: 'abierta', photos: WP.list.map(function (x) { return { id: x.id, name: x.name }; }), note: '', resolvedDate: '' }]);
+    if (WP.busy) { m.textContent = 'Espera a que terminen de subirse las fotos.'; return; }
+    WP.list = [];
     await wtyUpdate(o, cl, 'Garantía guardada');
   }
   async function wtyUpdate(o, cl, msg) {
@@ -1398,7 +1439,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     try { await state.db.collection('sales').doc(o.head.id).update({ claims: cl }); o.head.claims = cl; toast(msg); setTimeout(function () { openOrder(o.head.id); }, 200); }
     catch (ex) { toast('No se pudo guardar. Inténtalo de nuevo.'); }
   }
-  function closeOrder() { $('#od-modal').hidden = true; OD.id = ''; }
+  function closeOrder() { wtyDiscard(); $('#od-modal').hidden = true; OD.id = ''; }
   async function advStatus(id, to) {
     if (!state.db || state.demo) { toast('No se puede cambiar el estado ahora.'); return; }
     try { var ord = orderById(id); var ids = ord ? ord.items.map(function (x) { return x.id; }) : [id]; for (var i = 0; i < ids.length; i++) await state.db.collection('sales').doc(ids[i]).update({ status: to }); toast(to === 'enviado' ? 'Pedido marcado como enviado' : 'Pedido marcado como entregado'); }
@@ -1564,7 +1605,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     if (!state.db) return;
     var ord = coll === 'sales' ? orderById(id) : null; var items = ord ? ord.items : [];
     try {
-      if (coll === 'sales' && items.length) { for (var i = 0; i < items.length; i++) { await state.db.collection('sales').doc(items[i].id).delete(); if (items[i].invoice) delAsset(items[i].invoice.id); } }
+      if (coll === 'sales' && items.length) { for (var i = 0; i < items.length; i++) { await state.db.collection('sales').doc(items[i].id).delete(); if (items[i].invoice) delAsset(items[i].invoice.id); (items[i].claims || []).forEach(function (c) { (c.photos || []).forEach(function (x) { delAsset(x.id); }); }); } }
       else await state.db.collection(coll).doc(id).delete();
       toast(label);
     } catch (ex) { toast('No se pudo borrar. Inténtalo de nuevo.'); }
@@ -2033,9 +2074,10 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
     else if (act === 'fold-form') { foldForm(!$('#form-venta').classList.contains('collapsed'), true); }
     else if (act === 'wty-form') { wtyForm(el.dataset.id); }
+    else if (act === 'wty-rmphoto') { var pi = +el.dataset.i; var px = WP.list[pi]; if (px) { delAsset(px.id); WP.list.splice(pi, 1); paintWty(); } }
     else if (act === 'wty-save') { wtySave(el.dataset.id); }
     else if (act === 'wty-resolve') { var wo = orderById(el.dataset.id); if (wo) { var wn = $('#wn-' + el.dataset.cid); wtyUpdate(wo, (wo.head.claims || []).map(function (c) { return c.id === el.dataset.cid ? Object.assign({}, c, { status: 'resuelta', note: wn ? wn.value.trim() : '', resolvedDate: todayISO() }) : c; }), 'Garantía marcada como resuelta'); } }
-    else if (act === 'wty-del') { var wd = orderById(el.dataset.id); if (wd && confirm('¿Borrar esta garantía?')) wtyUpdate(wd, (wd.head.claims || []).filter(function (c) { return c.id !== el.dataset.cid; }), 'Garantía borrada'); }
+    else if (act === 'wty-del') { var wd = orderById(el.dataset.id); if (wd && confirm('¿Borrar esta garantía?')) { (wd.head.claims || []).forEach(function (c) { if (c.id === el.dataset.cid) (c.photos || []).forEach(function (x) { delAsset(x.id); }); }); wtyUpdate(wd, (wd.head.claims || []).filter(function (c) { return c.id !== el.dataset.cid; }), 'Garantía borrada'); } }
     else if (act === 'copy-ref') { var rv = el.dataset.ref; try { navigator.clipboard.writeText(rv).then(function () { toast('Referencia copiada: ' + rv); }, function () { toast(rv); }); } catch (e3) { toast(rv); } }
     else if (act === 'cli-open') { openClient(el.dataset.key); }
     else if (act === 'export-clients') { exportFile('clients'); }
@@ -2703,7 +2745,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792762156'; var newBuild = '';
+  var BUILD_ID = '1792762399'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
