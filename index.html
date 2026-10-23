@@ -243,7 +243,7 @@ body.ro #form-b2b, body.ro #form-stock, body.ro #form-sup, body.ro #form-ads,
 body.ro [data-act="edit-sale"], body.ro [data-act="del-sale"], body.ro [data-act="adv-status"], body.ro [data-act="edit-ad"], body.ro [data-act="del-ad"],
 body.ro [data-act="edit-stock"], body.ro [data-act="del-stock"], body.ro [data-act="del-quote"], body.ro [data-act="q-edit"], body.ro [data-act="q-del-line"],
 body.ro [data-act="q-add"], body.ro [data-act="q-new"], body.ro [data-act="q-save"], body.ro [data-act="q-image"], body.ro [data-act="sup-del"], body.ro [data-act^="pv-"],
-body.ro [data-act="rm-invoice"], body.ro [data-act="save-receipt"], body.ro #tool-users { display: none !important; }
+body.ro [data-act="rm-invoice"], body.ro [data-act="export-clients"], body.ro [data-act="save-receipt"], body.ro #tool-users { display: none !important; }
 .usr-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; }
 .usr-row small { display: block; color: var(--fg-2); }
 .menu-upd { display: block; width: 100%; margin-top: 8px; min-height: 46px; padding: 0 14px; text-align: left; font-size: 16px; border: 1px dashed var(--line); border-radius: 8px; background: transparent; color: var(--fg-2); cursor: pointer; }
@@ -331,6 +331,10 @@ li.sale[data-act="order-open"] { cursor: pointer; }
 .sf-btn { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .sf-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .chip-info { background: var(--accent-soft); color: var(--accent); }
+.cli-row { cursor: pointer; }
+.cli-row .sub { display: block; color: var(--fg-2); font-size: 14px; }
+.cli-det { display: none; padding: 6px 0 2px; font-size: 14px; color: var(--fg-2); }
+.cli-row.open .cli-det { display: block; }
 .cal-card h2 { margin: 0; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cal-nav { display: flex; gap: 6px; }
@@ -446,6 +450,13 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       <summary><span id="pend-title">Pendientes de envío</span></summary>
       <ul class="sales" id="pend-list"></ul>
     </details>
+    <details class="card pend-box" id="cli-box">
+      <summary><span id="cli-title">Clientes</span></summary>
+      <div class="field" style="margin-top:10px"><label for="cli-q">Buscar cliente</label><input type="search" id="cli-q" placeholder="Buscar por nombre, @usuario, teléfono o ciudad" autocomplete="off"></div>
+      <ul class="sales" id="cli-list"></ul>
+      <div class="btn-row"><button class="btn btn-ghost" type="button" data-act="export-clients">Exportar clientes (CSV)</button></div>
+      <p class="hint" id="cli-msg" role="status"></p>
+    </details>
     <form class="card" id="form-venta" novalidate>
       <h2 id="form-venta-title">Registrar venta</h2>
       <div class="fgrid">
@@ -459,6 +470,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
         <div class="field"><label for="f-supplier">Proveedor</label><input type="text" id="f-supplier" list="dl-suppliers" placeholder="A quién le compraste la pala" autocomplete="off"><datalist id="dl-suppliers"></datalist></div>
         <div class="field" style="grid-column:1/-1"><label for="f-street">Calle</label><input type="text" id="f-street" placeholder="Calle, número, piso, código postal" autocomplete="off"></div>
         <div class="field"><label for="f-city">Ciudad</label><input type="text" id="f-city" placeholder="Ciudad y país" autocomplete="off"></div>
+        <div class="field"><label for="f-email">Email <span class="hint">(opcional)</span></label><input type="email" id="f-email" placeholder="cliente@correo.com" autocomplete="off" autocapitalize="none" spellcheck="false"></div>
         <div class="field"><label for="f-phone">Teléfono</label><input type="text" id="f-phone" inputmode="tel" placeholder="+34 600 000 000" autocomplete="off"></div>
         <div class="field" style="grid-column:1/-1"><label for="f-invoice">Factura del envío (PDF o imagen)</label><input type="file" id="f-invoice" accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"><div class="hint" id="inv-status" role="status"></div></div>
         <div class="field"><label for="f-barcode">Código de barras (opcional)</label><input type="text" id="f-barcode" inputmode="numeric" autocomplete="off"></div>
@@ -911,7 +923,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   function isLoading() { return state.dbStatus === 'loading' || (state.dbStatus === 'ok' && !(state.loaded.sales && state.loaded.ads && state.loaded.stock && state.loaded.quotes)); }
 
   function normSale(d, id) {
-    return { id: id, date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', orderId: String(d.orderId || ''), pos: +d.pos || 0, brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
+    return { id: id, createdAt: String(d.createdAt || ''), email: String(d.email || ''), date: String(d.date || ''), client: String(d.client || ''), fullname: String(d.fullname || ''), cedula: String(d.cedula || ''), status: d.status === 'enviado' || d.status === 'entregado' ? d.status : 'pendiente', orderId: String(d.orderId || ''), pos: +d.pos || 0, brand: String(d.brand || ''), model: String(d.model || ''), year: String(d.year || ''), supplier: String(d.supplier || ''), street: String(d.street || (d.city || d.phone ? '' : d.address) || ''), city: String(d.city || ''), phone: String(d.phone || ''), invoice: d.invoice && d.invoice.id ? { id: String(d.invoice.id), name: String(d.invoice.name || 'Factura'), type: String(d.invoice.type || '') } : null, product: String(d.product || ''), barcode: String(d.barcode || ''), method: String(d.method || ''), usd: +d.usd || 0, cost: +d.cost || 0, ship: +d.ship || 0, rate: +d.rate || 0 };
   }
 
   function makeDemo() {
@@ -1141,6 +1153,33 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   var ST_LABEL = { pendiente: 'Pendiente de envío', enviado: 'Enviado', entregado: 'Entregado' };
   var ST_CHIP = { pendiente: 'chip-warn', enviado: 'chip-info', entregado: 'chip-good' };
   var ST_NEXT = { pendiente: ['enviado', 'Marcar enviado'], enviado: ['entregado', 'Marcar entregado'] };
+  /* ---- Clientes: se agrupan las ventas por usuario de Instagram, cédula, teléfono o nombre ---- */
+  function clientKey(s) { var k = String(s.client || '').toLowerCase().replace(/^@/, '').trim(); if (k) return 'ig:' + k; k = String(s.cedula || '').toLowerCase().replace(/[^a-z0-9]/g, ''); if (k) return 'ci:' + k; k = String(s.phone || '').replace(/\D/g, ''); if (k) return 'tel:' + k; k = String(s.fullname || '').toLowerCase().replace(/\s+/g, ' ').trim(); return k ? 'n:' + k : ''; }
+  function clientsOf(sales) {
+    var map = {}, list = [];
+    sortOrders(ordersOf(sales)).forEach(function (o) {
+      var h = o.head, k = clientKey(h); if (!k) return;
+      var c = map[k]; if (!c) { c = map[k] = { key: k, fullname: '', client: '', cedula: '', phone: '', email: '', city: '', street: '', orders: 0, usd: 0, last: '', items: [] }; list.push(c); }
+      ['fullname', 'client', 'cedula', 'phone', 'email', 'city', 'street'].forEach(function (f) { if (!c[f] && h[f]) c[f] = h[f]; });
+      c.orders++; o.items.forEach(function (x) { c.usd += x.usd; c.items.push((x.product || '(sin nombre)') + ' · ' + dateShort(h.date)); }); if (!c.last || h.date > c.last) c.last = h.date;
+    });
+    return list;
+  }
+  function renderClients() {
+    var box = $('#cli-box'); if (!box) return; var d = data(); var all = clientsOf(d.sales);
+    $('#cli-title').textContent = 'Clientes (' + all.length + ')';
+    var q = ($('#cli-q').value || '').toLowerCase().trim();
+    var list = q ? all.filter(function (c) { return [c.fullname, c.client, c.phone, c.city, c.email, c.cedula].join(' ').toLowerCase().indexOf(q) > -1; }) : all;
+    var ul = $('#cli-list');
+    if (isLoading()) { ul.innerHTML = '<li class="muted pad">Cargando…</li>'; return; }
+    if (!list.length) { ul.innerHTML = '<li class="muted pad">' + (all.length ? 'Ningún cliente coincide.' : 'Aquí aparecerán tus clientes según registres ventas.') + '</li>'; return; }
+    ul.innerHTML = list.map(function (c) {
+      var name = c.fullname || c.client || c.phone || c.cedula;
+      var sub = [c.client && c.fullname ? c.client : '', c.city].filter(Boolean).join(' · ');
+      var det = [c.phone && 'Tel. ' + c.phone, c.email, c.cedula && 'C.I. ' + c.cedula, c.street].filter(Boolean).map(esc).join(' · ');
+      return '<li class="sale cli-row" data-act="cli-toggle"><div class="sale-main"><strong>' + esc(name) + '</strong>' + (sub ? '<span class="sub">' + esc(sub) + '</span>' : '') + '<div class="cli-det">' + (det ? det + '<br>' : '') + c.items.map(esc).join('<br>') + '</div></div><div class="sale-money"><span class="usd">' + esc(fUSD.format(c.usd)) + '</span><span class="sub">' + c.orders + (c.orders === 1 ? ' pedido' : ' pedidos') + '</span></div></li>';
+    }).join('');
+  }
   /* ---- Envíos semanales: lo vendido hasta el miércoles 16:00 sale antes de ese miércoles; lo que entra después, antes del siguiente ---- */
   var p2 = function (n) { return (n < 10 ? '0' : '') + n; };
   var isoD = function (d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); };
@@ -1191,6 +1230,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
   function stCounts(list) { var c = { pendiente: 0, enviado: 0, entregado: 0 }; list.forEach(function (x) { c[x.status] = (c[x.status] || 0) + 1; }); return c; }
   function renderVentas() {
+    renderClients();
     var d = data(); var all = sortOrders(ordersOf(d.sales)); var cnt = stCounts(all);
     var fl = $('#status-filter');
     fl.hidden = !all.length;
@@ -1245,7 +1285,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     var nro = 'AP-' + String(s.date).replace(/-/g, '') + '-' + String(s.id).slice(-4).toUpperCase();
     var h = '<h2 id="od-title">' + esc(multi ? 'Pedido de ' + o.items.length + ' artículos' : 'Detalle del pedido') + '</h2>';
     h += '<p class="muted" style="margin:4px 0 0">' + esc(dateShort(s.date)) + ' · N.º ' + esc(nro) + ' <span class="chip ' + ST_CHIP[s.status] + '">' + esc(ST_LABEL[s.status]) + '</span></p>';
-    var cl = '<dl class="od-kv">' + kv('Nombre', s.fullname) + kv('Cédula', s.cedula) + kv('Instagram', s.client) + kv('Teléfono', s.phone) + kv('Envío a', [s.street, s.city].filter(Boolean).join(', ')) + '</dl>';
+    var cl = '<dl class="od-kv">' + kv('Nombre', s.fullname) + kv('Cédula', s.cedula) + kv('Instagram', s.client) + kv('Teléfono', s.phone) + kv('Email', s.email) + kv('Envío a', [s.street, s.city].filter(Boolean).join(', ')) + '</dl>';
     h += '<div class="od-sec"><h3>Cliente y envío</h3>' + (s.fullname || s.cedula || s.client || s.phone || s.street || s.city ? cl : '<span class="muted">Sin datos del cliente.</span>') + '</div>';
     h += '<div class="od-sec"><h3>Artículos</h3>';
     o.items.forEach(function (x) { var c = calc(x); h += '<div class="od-item"><strong>' + esc(x.product || '(sin nombre)') + '</strong>' + (x.supplier ? '<span class="sub">prov. ' + esc(x.supplier) + '</span>' : '') + '<div class="od-nums"><span>Cobrado<b>' + esc(fUSD.format(x.usd)) + '</b></span><span>Coste<b>' + esc(fEUR.format(x.cost)) + '</b></span><span>Beneficio<b>' + esc(signedM(c.rev - c.cost)) + '</b></span></div></div>'; });
@@ -1362,7 +1402,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
   function readSale() {
     return {
-      date: $('#f-date').value, client: $('#f-client').value.trim(), fullname: $('#f-fullname').value.trim(), cedula: $('#f-cedula').value.trim(), status: $('#f-status').value || 'pendiente', brand: $('#f-brand').value.trim(), model: $('#f-model').value.trim(), year: $('#f-year').value.trim(), supplier: $('#f-supplier').value.trim(), street: $('#f-street').value.trim(), city: $('#f-city').value.trim(), phone: $('#f-phone').value.trim(), product: compose($('#f-brand').value, $('#f-model').value, $('#f-year').value), barcode: $('#f-barcode').value.trim(), method: $('#f-method').value.trim(),
+      date: $('#f-date').value, client: $('#f-client').value.trim(), email: $('#f-email').value.trim(), fullname: $('#f-fullname').value.trim(), cedula: $('#f-cedula').value.trim(), status: $('#f-status').value || 'pendiente', brand: $('#f-brand').value.trim(), model: $('#f-model').value.trim(), year: $('#f-year').value.trim(), supplier: $('#f-supplier').value.trim(), street: $('#f-street').value.trim(), city: $('#f-city').value.trim(), phone: $('#f-phone').value.trim(), product: compose($('#f-brand').value, $('#f-model').value, $('#f-year').value), barcode: $('#f-barcode').value.trim(), method: $('#f-method').value.trim(),
       usd: num($('#f-usd').value), cost: num($('#f-cost').value), ship: isNaN(num($('#f-ship').value)) ? 0 : num($('#f-ship').value), rate: num($('#f-rate').value)
     };
   }
@@ -1398,7 +1438,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       var keepIds = {};
       for (var k = 0; k < xs.length; k++) {
         var xr = xs[k]; var xref = xr.docid ? col.doc(xr.docid) : col.doc(); keepIds[xref.id] = 1;
-        await xref.set({ date: v.date, client: v.client, fullname: v.fullname, cedula: v.cedula, status: v.status, street: v.street, city: v.city, phone: v.phone, method: v.method, rate: v.rate, barcode: '', ship: 0, createdAt: ca0 || '',
+        await xref.set({ date: v.date, client: v.client, email: v.email, fullname: v.fullname, cedula: v.cedula, status: v.status, street: v.street, city: v.city, phone: v.phone, method: v.method, rate: v.rate, barcode: '', ship: 0, createdAt: ca0 || '',
           brand: xr.brand, model: xr.model, year: xr.year, supplier: xr.supplier, product: xr.product, usd: xr.usd, cost: xr.cost, orderId: ref.id, pos: k + 1 });
       }
       var oldX = state.editExtraIds || [];
@@ -1418,7 +1458,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   function editSale(id) {
     var ord = orderById(id); if (!ord) return; var s = ord.head; id = s.id;
     setTab('ventas');
-    $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; $('#f-status').value = s.status; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
+    $('#f-date').value = s.date; $('#f-client').value = s.client; $('#f-email').value = s.email || ''; $('#f-fullname').value = s.fullname; $('#f-cedula').value = s.cedula; $('#f-status').value = s.status; var sp = splitProduct(s); $('#f-brand').value = sp.brand; $('#f-model').value = sp.model; $('#f-year').value = sp.year; $('#f-supplier').value = s.supplier; $('#f-street').value = s.street; $('#f-city').value = s.city; $('#f-phone').value = s.phone; state.invoice = s.invoice; state.invoiceOrig = s.invoice; state.invoiceUnsaved = false; renderInvoiceStatus(); $('#f-barcode').value = s.barcode; $('#f-method').value = s.method;
     $('#f-usd').value = toField(s.usd); $('#f-cost').value = toField(s.cost); $('#f-ship').value = toField(s.ship); $('#f-rate').value = toField(s.rate);
     clearExtras(); ord.items.slice(1).forEach(function (x) { var sx = splitProduct(x); addExtra({ id: x.id, brand: sx.brand, model: sx.model, year: sx.year, supplier: x.supplier, usd: toField(x.usd), cost: toField(x.cost) }); }); state.editExtraIds = ord.items.slice(1).map(function (x) { return x.id; });
     state.editing = id; state.editCreated = s.createdAt || ''; $('#form-venta-title').textContent = 'Editar venta'; $('#f-submit').textContent = 'Guardar cambios'; $('#f-cancel').hidden = false; $('#form-error').textContent = '';
@@ -1608,6 +1648,9 @@ li.sale[data-act="order-open"] { cursor: pointer; }
     if (kind === 'sales') {
       name = 'astrodash-ventas-' + stamp + '.csv';
       body = toCSV(['Fecha', 'Estado del pedido', 'Nombre y apellido', 'Cédula', 'Usuario de Instagram', 'Marca', 'Modelo', 'Año', 'Proveedor', 'Calle', 'Ciudad', 'Teléfono', 'Factura de envío', 'Producto', 'Código de barras', 'Método de pago', 'Cobrado (USD)', 'Coste (EUR)', 'Envío (EUR)', 'Cambio USD/EUR', 'Ingreso (EUR)', 'Beneficio (EUR)', 'Beneficio (USD)'], sortSales(state.sales).map(function (x) { var sp = splitProduct(x); var eur = x.rate > 0 ? x.usd / x.rate : 0; return [x.date, ST_LABEL[x.status], x.fullname, x.cedula, x.client, sp.brand, sp.model, sp.year, x.supplier, x.street, x.city, x.phone, x.invoice ? 'Sí' : 'No', x.product, x.barcode, x.method, csvNum(x.usd), csvNum(x.cost), csvNum(x.ship), csvNum(x.rate), csvNum(eur.toFixed(2)), csvNum((eur - x.cost - x.ship).toFixed(2)), csvNum((x.usd - (x.cost + x.ship) * x.rate).toFixed(2))]; }));
+    } else if (kind === 'clients') {
+      name = 'astrodash-clientes-' + stamp + '.csv';
+      body = toCSV(['Nombre y apellido', 'Usuario de Instagram', 'Email', 'Teléfono', 'Cédula', 'Ciudad', 'Pedidos', 'Total cobrado (USD)', 'Última compra'], clientsOf(state.sales).map(function (c) { return [c.fullname, c.client, c.email, c.phone, c.cedula, c.city, c.orders, csvNum(c.usd), c.last]; }));
     } else if (kind === 'ads') {
       name = 'astrodash-publicidad-' + stamp + '.csv';
       body = toCSV(['Mes', 'Gasto (EUR)', 'Nota'], state.ads.slice().sort(function (a, b) { return a.month < b.month ? -1 : 1; }).map(function (a) { return [a.month, csvNum(a.amount), a.note]; }));
@@ -1884,6 +1927,8 @@ li.sale[data-act="order-open"] { cursor: pointer; }
       if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
+    else if (act === 'cli-toggle') { el.classList.toggle('open'); }
+    else if (act === 'export-clients') { exportFile('clients'); }
     else if (act === 'cal-prev') { state.calOff--; renderResumen(); }
     else if (act === 'cal-next') { state.calOff++; renderResumen(); }
     else if (act === 'cal-now') { state.calOff = 0; renderResumen(); }
@@ -1931,6 +1976,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   bindProveedores();
   $('#form-venta').addEventListener('submit', saveSale);
   $('#form-ads').addEventListener('submit', saveAd);
+  $('#cli-q').addEventListener('input', renderClients);
   ['f-usd', 'f-cost', 'f-ship', 'f-rate'].forEach(function (id) { $('#' + id).addEventListener('input', updatePreview); });
   $('#extra-items').addEventListener('input', updatePreview);
   function saleProductChanged() {
@@ -2546,7 +2592,7 @@ li.sale[data-act="order-open"] { cursor: pointer; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792759270'; var newBuild = '';
+  var BUILD_ID = '1792759635'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
