@@ -106,7 +106,7 @@ main.inner { padding-block: 20px 56px; display: grid; gap: 22px; }
 .pad { padding: 28px 4px; }
 
 /* Resumen */
-.toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .toolbar label { font-weight: 600; color: var(--fg-2); font-size: 14px; }
 select, textarea, input[type="text"], input[type="password"], input[type="date"], input[type="month"] { padding: 0 12px; min-height: 44px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--fg); font-size: 16px; width: 100%; min-width: 0; }
 textarea { padding: 10px 12px; line-height: 1.4; resize: vertical; font-family: inherit; }
@@ -117,9 +117,10 @@ a.link { text-decoration: none; display: inline-flex; align-items: center; }
 .seg { flex: none; }
 .seg button { min-height: 44px; min-width: 48px; padding: 0 12px; border: 0; background: transparent; color: var(--fg-2); font: inherit; font-weight: 700; cursor: pointer; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
-.toolbar select { width: auto; min-width: 140px; flex: 1 1 140px; max-width: 220px; }
+.toolbar select { width: auto; min-width: 100px; flex: 1 1 100px; max-width: 220px; }
 #toolbar-res { flex-wrap: nowrap; gap: 8px; }
 #toolbar-res label { flex: none; }
+#toolbar-res select { min-width: 0; }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: center; }
 .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
 .hero-num { font: 700 clamp(52px, 11vw, 84px)/1 var(--font-display); margin: 8px 0 10px; letter-spacing: .01em; }
@@ -154,6 +155,8 @@ a.link { text-decoration: none; display: inline-flex; align-items: center; }
 .tbl tr:last-child td { border-bottom: 0; }
 .tbl .num { text-align: right; white-space: nowrap; }
 .tbl .pname { font-weight: 600; min-width: 140px; }
+.eye-btn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--fg-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
+.eye-btn svg { width: 22px; height: 22px; }
 button.chip { border: 1px solid var(--line); background: transparent; color: var(--fg-2); font-family: inherit; padding: 6px 12px; margin: 0 4px 6px 0; cursor: pointer; }
 button.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
@@ -481,6 +484,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     <div class="toolbar" id="toolbar-res">
       <label for="periodo">Periodo</label>
       <select id="periodo"><option value="all">Todo el tiempo</option></select>
+      <button type="button" class="eye-btn" id="priv-btn" data-act="priv" aria-pressed="true" aria-label="Mostrar u ocultar importes" title="Mostrar u ocultar importes"></button>
       <div class="seg" id="moneda" role="group" aria-label="Ver importes en"><button type="button" data-cur="USD" aria-pressed="true">US$</button><button type="button" data-cur="EUR" aria-pressed="false">€</button></div>
     </div>
     <div class="card fol" id="fol-tile" hidden></div>
@@ -933,15 +937,20 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   var todayISO = function () { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
   var fEUR = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
   var fEUR0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-  var fUSD = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' });
-  var fPct = new Intl.NumberFormat('es-ES', { style: 'percent', maximumFractionDigits: 1 });
+  /* Modo discreto: en Resumen los importes y porcentajes salen como ••• */
+  var PRIV = true, MASKING = false;
+  try { if (localStorage.getItem('astro.priv') === '0') PRIV = false; } catch (e) { /* sin almacenamiento */ }
+  var masked = function () { return PRIV && (MASKING || (typeof state !== 'undefined' && state.tab === 'resumen')); };
+  var mk$ = function (f) { return { format: function (n) { return masked() ? '•••' : f.format(n); } }; };
+  var fUSD = mk$(new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD' }));
+  var fPct = mk$(new Intl.NumberFormat('es-ES', { style: 'percent', maximumFractionDigits: 1 }));
   var fRate = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
   var signed = function (n) { return (n > 0 ? '+' : '') + fEUR.format(n); };
   var fUSD0 = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
   var CUR = 'USD';
   try { var savedCur = localStorage.getItem('astro.cur'); if (savedCur === 'EUR' || savedCur === 'USD') CUR = savedCur; } catch (e) { /* sin almacenamiento */ }
-  var fM = { format: function (n) { return (CUR === 'USD' ? fUSD : fEUR).format(n); } };
-  var fM0 = { format: function (n) { return (CUR === 'USD' ? fUSD0 : fEUR0).format(n); } };
+  var fM = { format: function (n) { return masked() ? '•••' : (CUR === 'USD' ? fUSD : fEUR).format(n); } };
+  var fM0 = { format: function (n) { return masked() ? '•••' : (CUR === 'USD' ? fUSD0 : fEUR0).format(n); } };
   var signedM = function (n) { return (n > 0 ? '+' : '') + fM.format(n); };
 
   function num(v) {
@@ -1076,7 +1085,8 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     });
   }
 
-  function renderResumen() {
+  function renderResumen() { MASKING = true; try { renderResumen0(); } finally { MASKING = false; } }
+  function renderResumen0() {
     var body = $('#res-body'); var d = data();
     setPeriodOptions();
     var empty = !d.sales.length && !d.ads.length;
@@ -1163,6 +1173,9 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   function drawChart() {
+    MASKING = true; try { drawChart0(); } finally { MASKING = false; }
+  }
+  function drawChart0() {
     var box = $('#chart-box'); if (!box || $('#view-resumen').hidden) return;
     var rows = monthlySeries(data());
     if (!rows.length) { box.innerHTML = '<p class="muted">Sin datos todavía.</p>'; return; }
@@ -2144,6 +2157,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       if (el.dataset.armed) { clearTimeout(+el.dataset.armed); el.removeAttribute('data-armed'); if (act === 'sup-del') deleteSupplier(el.dataset.id); else deleteDoc('prices', el.dataset.id, 'Precio quitado'); }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
+    else if (act === 'priv') { PRIV = !PRIV; try { localStorage.setItem('astro.priv', PRIV ? '1' : '0'); } catch (err) { /* sin almacenamiento */ } syncPriv(); renderResumen(); }
     else if (act === 'cat-brand') { CAT.brand = el.dataset.b || ''; renderCatalog(); }
     else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
     else if (act === 'fold-form') { foldForm(!$('#form-venta').classList.contains('collapsed'), true); }
@@ -2220,6 +2234,9 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
   ['f-brand', 'f-model', 'f-year'].forEach(function (id) { $('#' + id).addEventListener('change', saleProductChanged); });
   $('#periodo').addEventListener('change', function () { state.period = this.value; renderResumen(); });
+  var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+  function syncPriv() { var b = $('#priv-btn'); if (!b) return; b.innerHTML = EYE + (PRIV ? '<path d="M3 3l18 18"/>' : '') + '</svg>'; b.setAttribute('aria-pressed', PRIV ? 'true' : 'false'); b.title = PRIV ? 'Mostrar importes' : 'Ocultar importes'; }
+  syncPriv();
   function syncCur() { Array.prototype.forEach.call(document.querySelectorAll('#moneda button'), function (b) { b.setAttribute('aria-pressed', b.dataset.cur === CUR ? 'true' : 'false'); }); }
   syncCur();
   $('#moneda').addEventListener('click', function (e) {
@@ -2820,7 +2837,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792769435'; var newBuild = '';
+  var BUILD_ID = '1792941584'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
