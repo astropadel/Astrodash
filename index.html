@@ -120,7 +120,7 @@ a.link { text-decoration: none; display: inline-flex; align-items: center; }
 .toolbar select { width: auto; min-width: 100px; flex: 1 1 100px; max-width: 220px; }
 #toolbar-res { flex-wrap: nowrap; gap: 8px; }
 #toolbar-res label { flex: none; }
-#toolbar-res select { min-width: 0; }
+#toolbar-res select { min-width: 0; width: 90px; }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: center; }
 .eyebrow { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-2); }
 .hero-num { font: 700 clamp(52px, 11vw, 84px)/1 var(--font-display); margin: 8px 0 10px; letter-spacing: .01em; }
@@ -2837,7 +2837,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792941584'; var newBuild = '';
+  var BUILD_ID = '1792941628'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
