@@ -749,6 +749,18 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
         </div>
       </div>
     </details>
+    <details class="card tool admin-only" id="tool-push">
+      <summary>Avisos en el iPhone</summary>
+      <div class="tool-body">
+        <p class="muted">Te avisa cada 2 días si hay pedidos pendientes de envío. En iPhone hay que abrir AstroDash desde el icono de la pantalla de inicio (no desde Safari) y aceptar el permiso.</p>
+        <p class="hint" id="push-msg" role="status"></p>
+        <div class="btn-row">
+          <button class="btn" type="button" data-act="push-on" id="push-on">Activar avisos</button>
+          <button class="btn btn-ghost" type="button" data-act="push-test" id="push-test" hidden>Enviar aviso de prueba</button>
+          <button class="btn btn-ghost" type="button" data-act="push-off" id="push-off" hidden>Desactivar</button>
+        </div>
+      </div>
+    </details>
     <details class="card tool admin-only" id="tool-users">
       <summary>Usuarios</summary>
       <div class="tool-body">
@@ -2174,6 +2186,9 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     else if (act === 'cal-now') { state.calOff = 0; renderResumen(); }
     else if (act === 'usr-gen') { var gp = ''; var al = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'; var rb = new Uint8Array(12); crypto.getRandomValues(rb); for (var gi = 0; gi < 12; gi++) gp += al[rb[gi] % al.length]; $('#u-pass').value = gp; }
     else if (act === 'usr-create') { usrCreate(); }
+    else if (act === 'push-on') { pushOn(); }
+    else if (act === 'push-test') { pushTest(); }
+    else if (act === 'push-off') { pushOff(); }
     else if (act === 'usr-del') { usrDelete(el.dataset.id, el.dataset.email); }
     else if (act === 'fol-refresh') { loadFollowers(true); }
     else if (act === 'new-sale') { foldForm(false, false); setTab('ventas'); window.scrollTo(0, 0); setTimeout(function () { $('#f-client').focus(); }, 30); }
@@ -2837,7 +2852,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1792941628'; var newBuild = '';
+  var BUILD_ID = '1793049427'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
@@ -2918,6 +2933,51 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     lockEl.hidden = false; document.body.classList.add('locked'); showPane('pin'); refreshBio();
   }
   function unlock() { var lbn = $('#lock-btn'); if (lbn) lbn.classList.remove('closed'); lockEl.hidden = true; document.body.classList.remove('locked'); refreshBio(); loginFails = 0; pinFails = 0; entered = ''; paintDots(); $('#l-pass').value = ''; setTimeout(drawChart, 0); if (state.tab === 'resumen') loadFollowers(false); A.markIn(); applyRole(); }
+    /* ---- Avisos push (iPhone: solo desde la app añadida a la pantalla de inicio) ---- */
+    var VAPID_PUB = 'BIDoJN-bLKOXA1U_THK9rDb3Y_qJksZogLpH598jhd5FhpZ6Km_Ugy7aCdSxe3VLmentgJLSb8iU1BBEXfweUDM';
+    var pushMsg = function (t) { var m = $('#push-msg'); if (m) m.textContent = t; };
+    function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+    function b64ToU8(b) { var p = '='.repeat((4 - b.length % 4) % 4); var r = atob((b + p).replace(/-/g, '+').replace(/_/g, '/')); var o = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) o[i] = r.charCodeAt(i); return o; }
+    async function pushState() {
+      var on = $('#push-on'); if (!on) return;
+      if (!pushSupported()) { var ios = /iphone|ipad/i.test(navigator.userAgent); pushMsg(ios ? 'Abre AstroDash desde el icono de la pantalla de inicio (Compartir → Añadir a pantalla de inicio) y vuelve a esta sección.' : 'Este navegador no admite avisos.'); on.disabled = true; return; }
+      var sub = null; try { var reg = await navigator.serviceWorker.getRegistration(); sub = reg && await reg.pushManager.getSubscription(); } catch (e) { /* sigue */ }
+      on.hidden = !!sub; $('#push-test').hidden = !sub; $('#push-off').hidden = !sub;
+      pushMsg(sub ? 'Avisos activados en este dispositivo.' : (Notification.permission === 'denied' ? 'Los avisos están bloqueados: actívalos en Ajustes del iPhone → Notificaciones → AstroDash.' : ''));
+    }
+    async function pushOn() {
+      if (!pushSupported()) { pushState(); return; }
+      try {
+        var perm = await Notification.requestPermission();
+        if (perm !== 'granted') { pushMsg('No has dado permiso. Actívalo en Ajustes del iPhone → Notificaciones → AstroDash.'); return; }
+        var reg = await navigator.serviceWorker.register('sw.js'); await navigator.serviceWorker.ready;
+        var sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUB) });
+        var j = sub.toJSON();
+        var r = await A.sb.from('push_subs').upsert({ endpoint: j.endpoint, sub: j });
+        if (r.error) { pushMsg(/relation|does not exist|schema cache/i.test(r.error.message) ? 'Falta instalar la parte de Supabase (push.sql).' : 'No se pudo guardar: ' + r.error.message); return; }
+        pushMsg('Avisos activados. Pulsa «Enviar aviso de prueba».'); pushState();
+      } catch (e) { pushMsg('No se pudo activar: ' + (e && e.message ? e.message : e)); }
+    }
+    async function pushTest() {
+      var ses = await A.sb.auth.getSession(); var tk = ses && ses.data && ses.data.session && ses.data.session.access_token;
+      if (!tk) { pushMsg('Sesión caducada. Vuelve a entrar.'); return; }
+      pushMsg('Enviando…');
+      try {
+        var r = await fetch('https://ytypjwnuuoskhlntuvhr.supabase.co/functions/v1/push-reminder', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tk, apikey: 'sb_publishable_agXwN3Ba-2jzyj7BRyVBiQ_jrVqy-Z0' }, body: JSON.stringify({ action: 'test' }) });
+        var j = await r.json().catch(function () { return {}; });
+        if (r.status === 404) pushMsg('La función de avisos aún no está instalada en Supabase.');
+        else if (!r.ok) pushMsg(j.error || 'No se pudo enviar.');
+        else pushMsg(j.sent ? 'Aviso enviado: debería llegar en unos segundos.' : 'No se envió a ningún dispositivo.' + (j.note ? ' (' + j.note + ')' : ''));
+      } catch (e) { pushMsg('No se pudo conectar. Revisa tu conexión.'); }
+    }
+    async function pushOff() {
+      try {
+        var reg = await navigator.serviceWorker.getRegistration(); var sub = reg && await reg.pushManager.getSubscription();
+        if (sub) { var ep = sub.endpoint; await sub.unsubscribe(); await A.sb.from('push_subs').delete().eq('endpoint', ep); }
+      } catch (e) { /* sigue */ }
+      pushState();
+    }
+    setTimeout(pushState, 600);
     async function usrCall(body) {
     var ses = await A.sb.auth.getSession(); var tk = ses && ses.data && ses.data.session && ses.data.session.access_token;
     if (!tk) return { error: 'Sesión caducada. Vuelve a entrar.' };
