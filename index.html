@@ -752,7 +752,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
     <details class="card tool admin-only" id="tool-push">
       <summary>Avisos en el iPhone</summary>
       <div class="tool-body">
-        <p class="muted">Te avisa cada 2 días si hay pedidos pendientes de envío. En iPhone hay que abrir AstroDash desde el icono de la pantalla de inicio (no desde Safari) y aceptar el permiso.</p>
+        <p class="muted">Te avisa cada día a las 10:00 y a las 22:00 si hay pedidos pendientes de envío. En iPhone hay que abrir AstroDash desde el icono de la pantalla de inicio (no desde Safari) y aceptar el permiso.</p>
         <p class="hint" id="push-msg" role="status"></p>
         <div class="btn-row">
           <button class="btn" type="button" data-act="push-on" id="push-on">Activar avisos</button>
@@ -2852,7 +2852,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1793049427'; var newBuild = '';
+  var BUILD_ID = '1793049919'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
