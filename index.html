@@ -157,6 +157,9 @@ a.link { text-decoration: none; display: inline-flex; align-items: center; }
 .tbl .pname { font-weight: 600; min-width: 140px; }
 .eye-btn { width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--fg-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; }
 .eye-btn svg { width: 22px; height: 22px; }
+.eye-btn.rec { background: var(--accent); color: #fff; border-color: var(--accent); animation: micpulse 1.2s ease-in-out infinite; }
+@keyframes micpulse { 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .eye-btn.rec { animation: none; } }
 button.chip { border: 1px solid var(--line); background: transparent; color: var(--fg-2); font-family: inherit; padding: 6px 12px; margin: 0 4px 6px 0; cursor: pointer; }
 button.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
@@ -552,7 +555,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   <section class="view" id="view-catalogo" role="tabpanel" aria-labelledby="tab-catalogo" hidden>
     <div class="card">
       <h2>Catálogo de palas</h2>
-      <div class="field" style="margin-top:10px"><label for="cat-q">Buscar modelo</label><input type="search" id="cat-q" placeholder="Genius, Vertex, Metalbone…" autocomplete="off"></div>
+      <div class="field" style="margin-top:10px"><label for="cat-q">Buscar modelo</label><div style="display:flex;gap:8px;align-items:stretch"><input type="search" id="cat-q" placeholder="Genius, Vertex, Metalbone…" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="eye-btn" id="cat-mic" data-act="cat-mic" aria-pressed="false" aria-label="Buscar por voz" title="Buscar por voz" style="height:auto;width:46px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg></button></div></div>
       <div class="chips" id="cat-brands" style="margin-top:10px"></div>
       <ul class="cli-list" id="cat-list"></ul>
       <p class="hint" id="cat-msg" role="status"></p>
@@ -1318,11 +1321,37 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
   /* ---- Catálogo de palas (catalog.json + miniaturas img/) ---- */
   var CAT = { items: [], brand: '' };
+  /* Búsqueda del catálogo: sin tildes ni mayúsculas y tolerante a espacios ("18 k" = "18k") */
+  function catNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.,;:!?¿¡]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function catHit(text, q) { var t = catNorm(text); return t.indexOf(q) > -1 || t.replace(/ /g, '').indexOf(q.replace(/ /g, '')) > -1; }
+  /* Búsqueda por voz (Web Speech API; en iPhone solo funciona en Safari, no siempre en la app de la pantalla de inicio) */
+  var CATVOICE = { rec: null };
+  function catVoiceEnd() { CATVOICE.rec = null; var b = $('#cat-mic'); if (b) { b.classList.remove('rec'); b.setAttribute('aria-pressed', 'false'); } }
+  function catVoice() {
+    if (CATVOICE.rec) { try { CATVOICE.rec.stop(); } catch (e) { catVoiceEnd(); } return; }
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { toast('Este navegador no admite búsqueda por voz. Usa el micrófono del teclado.'); return; }
+    var rec; try { rec = new SR(); } catch (e) { toast('No se pudo iniciar el micrófono.'); return; }
+    rec.lang = 'es-ES'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.onresult = function (ev) {
+      var t = ''; for (var i = 0; i < ev.results.length; i++) t += ev.results[i][0].transcript + ' ';
+      $('#cat-q').value = t.replace(/[.,;:!?¿¡]/g, ' ').replace(/\s+/g, ' ').trim(); renderCatalog();
+    };
+    rec.onerror = function (ev) {
+      var e = ev && ev.error;
+      if (e === 'not-allowed' || e === 'service-not-allowed') toast('Permite el micrófono para buscar por voz. Si abres la app desde la pantalla de inicio, prueba en Safari o usa el micrófono del teclado.');
+      else if (e === 'no-speech') toast('No te he oído. Inténtalo de nuevo.');
+      else if (e !== 'aborted') toast('No se pudo escuchar. Inténtalo de nuevo.');
+    };
+    rec.onend = catVoiceEnd;
+    CATVOICE.rec = rec; var b = $('#cat-mic'); if (b) { b.classList.add('rec'); b.setAttribute('aria-pressed', 'true'); }
+    try { rec.start(); } catch (e) { catVoiceEnd(); toast('No se pudo iniciar el micrófono.'); }
+  }
   function renderCatalog() {
-    var q = ($('#cat-q').value || '').toLowerCase().trim();
+    var q = catNorm($('#cat-q').value);
     var brands = []; CAT.items.forEach(function (i) { if (brands.indexOf(i.b) < 0) brands.push(i.b); });
     $('#cat-brands').innerHTML = ['Todas'].concat(brands).map(function (b) { var on = (b === 'Todas' ? '' : b) === CAT.brand; return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-act="cat-brand" data-b="' + esc(b === 'Todas' ? '' : b) + '">' + esc(b) + '</button>'; }).join('');
-    var L = CAT.items.filter(function (i) { return (!CAT.brand || i.b === CAT.brand) && (!q || (i.b + ' ' + i.n).toLowerCase().indexOf(q) > -1); });
+    var L = CAT.items.filter(function (i) { return (!CAT.brand || i.b === CAT.brand) && (!q || catHit(i.b + ' ' + i.n, q)); });
     $('#cat-list').innerHTML = L.map(function (i) {
       var img = i.i ? '<img src="' + esc(i.i) + '" alt="" loading="lazy" style="width:44px;height:56px;object-fit:contain;flex:none">' : '<span style="width:44px;height:56px;flex:none"></span>';
       return '<li class="cli-row" style="cursor:default;align-items:center;justify-content:flex-start">' + img + '<span><b>' + esc(i.n) + '</b><span class="sub">' + esc(i.b) + (i.y ? ' · ' + i.y : '') + '</span></span></li>';
@@ -2170,6 +2199,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
       else { el.textContent = '¿Seguro?'; el.dataset.armed = String(setTimeout(function () { el.removeAttribute('data-armed'); el.textContent = act === 'sup-del' ? 'Borrar' : 'Quitar'; }, 3000)); }
     }
     else if (act === 'priv') { PRIV = !PRIV; try { localStorage.setItem('astro.priv', PRIV ? '1' : '0'); } catch (err) { /* sin almacenamiento */ } syncPriv(); renderResumen(); }
+    else if (act === 'cat-mic') { catVoice(); }
     else if (act === 'cat-brand') { CAT.brand = el.dataset.b || ''; renderCatalog(); }
     else if (act === 'nav-sub') { setTab(el.dataset.go || 'ventas'); window.scrollTo(0, 0); }
     else if (act === 'fold-form') { foldForm(!$('#form-venta').classList.contains('collapsed'), true); }
@@ -2852,7 +2882,7 @@ body.ro [data-act="wty-form"], body.ro .wty-edit { display: none !important; }
   }
 
   /* ---------- Avisar cuando hay una versión nueva ---------- */
-  var BUILD_ID = '1793049919'; var newBuild = '';
+  var BUILD_ID = '1793396777'; var newBuild = '';
   function checkUpdateNow(btn) {
     btn.disabled = true; btn.textContent = 'Buscando…';
     var done = function (t) { btn.disabled = false; btn.textContent = 'Buscar actualización'; if (t) toast(t); };
